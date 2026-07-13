@@ -312,7 +312,7 @@ Install the following tools before running the project:
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ecd-tracking-system.git
+git clone https://github.com/ndarama/ecd-tracker.git
 cd ecd-tracking-system
 ```
 
@@ -413,7 +413,7 @@ npm run build
 Start the application using PM2:
 
 ```bash
-pm2 start npm --name "ecd-tracking-system" -- start
+pm2 start npm --name "ecd-tracker" -- start
 ```
 
 Save the PM2 process:
