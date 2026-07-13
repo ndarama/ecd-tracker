@@ -313,7 +313,7 @@ Install the following tools before running the project:
 
 ```bash
 git clone https://github.com/ndarama/ecd-tracker.git
-cd ecd-tracking-system
+cd ecd-tracker
 ```
 
 ### Install Dependencies
