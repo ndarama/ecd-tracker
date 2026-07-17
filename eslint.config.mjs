@@ -17,6 +17,14 @@ const eslintConfig = defineConfig([
     rules: {
       // Allow plain <img> for static assets like the logo
       "@next/next/no-img-element": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
+  {
+    files: ["tests/**"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
     },
   },
 ]);
