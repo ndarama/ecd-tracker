@@ -1,0 +1,157 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  CHW
+  SUPERVISOR
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CHW)
+  village   String?
+  phone     String?
+
+  children  Child[]     @relation("AssignedCHW")
+  visits    HomeVisit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Child & Household ────────────────────────────────────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+model Child {
+  id             String   @id @default(cuid())
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime
+  gender         Gender
+  village        String
+  caregiverName  String
+  caregiverPhone String?
+
+  chw    User   @relation("AssignedCHW", fields: [chwId], references: [id])
+  chwId  String
+
+  growthRecords  GrowthRecord[]
+  immunizations  Immunization[]
+  milestones     Milestone[]
+  visits         HomeVisit[]
+  referrals      Referral[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Growth & Health ──────────────────────────────────────────────────────────
+
+enum NutritionStatus {
+  NORMAL
+  MODERATE_MALNUTRITION
+  SEVERE_MALNUTRITION
+  OVERWEIGHT
+}
+
+model GrowthRecord {
+  id              String           @id @default(cuid())
+  child           Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  childId         String
+  date            DateTime
+  weightKg        Float?
+  heightCm        Float?
+  muacCm          Float?
+  nutritionStatus NutritionStatus?
+  notes           String?
+  createdAt       DateTime         @default(now())
+}
+
+model Immunization {
+  id          String    @id @default(cuid())
+  child       Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  childId     String
+  vaccine     String
+  dueDate     DateTime
+  givenDate   DateTime?
+  batchNumber String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+}
+
+enum MilestoneCategory {
+  MOTOR
+  LANGUAGE
+  COGNITIVE
+  SOCIAL
+}
+
+model Milestone {
+  id           String            @id @default(cuid())
+  child        Child             @relation(fields: [childId], references: [id], onDelete: Cascade)
+  childId      String
+  category     MilestoneCategory
+  description  String
+  achievedDate DateTime?
+  notes        String?
+  createdAt    DateTime          @default(now())
+}
+
+// ─── Home Visits & Follow-up ──────────────────────────────────────────────────
+
+enum VisitStatus {
+  SCHEDULED
+  COMPLETED
+  MISSED
+  CANCELLED
+}
+
+model HomeVisit {
+  id            String      @id @default(cuid())
+  child         Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+  childId       String
+  chw           User        @relation(fields: [chwId], references: [id])
+  chwId         String
+  visitDate     DateTime
+  observations  String?
+  followUpDate  DateTime?
+  status        VisitStatus @default(SCHEDULED)
+  createdAt     DateTime    @default(now())
+}
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model Referral {
+  id           String         @id @default(cuid())
+  child        Child          @relation(fields: [childId], references: [id], onDelete: Cascade)
+  childId      String
+  reason       String
+  facility     String
+  referralDate DateTime
+  status       ReferralStatus @default(PENDING)
+  outcome      String?
+  createdAt    DateTime       @default(now())
+}
