@@ -30,7 +30,6 @@ export default function Sidebar() {
     <aside className="flex flex-col w-64 min-h-screen bg-emerald-800 text-white shrink-0">
       {/* Logo */}
       <div className="px-4 py-5 border-b border-emerald-700">
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src="/logo.png"
           alt="ECD Tracker"

@@ -36,7 +36,6 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-lg px-8 py-10">
           {/* Branding */}
           <div className="mb-8 text-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.png"
               alt="ECD Tracker"

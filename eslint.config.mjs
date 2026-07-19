@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Allow plain <img> for static assets like the logo
+      "@next/next/no-img-element": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
