@@ -9,6 +9,7 @@ import {
   ClipboardDocumentListIcon,
   ChartBarIcon,
   BellIcon,
+  UserCircleIcon,
   ArrowRightStartOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import clsx from "clsx";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/visits", label: "Home Visits", icon: ClipboardDocumentListIcon },
   { href: "/reports", label: "Reports", icon: ChartBarIcon },
   { href: "/notifications", label: "Notifications", icon: BellIcon },
+  { href: "/account", label: "Account", icon: UserCircleIcon },
 ];
 
 export default function Sidebar() {
@@ -27,9 +29,14 @@ export default function Sidebar() {
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-emerald-800 text-white shrink-0">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-emerald-700">
-        <span className="text-lg font-bold tracking-tight">ECD Tracker</span>
-        <p className="text-xs text-emerald-300 mt-0.5">Community Health System</p>
+      <div className="px-4 py-5 border-b border-emerald-700">
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/logo.png"
+          alt="ECD Tracker"
+          className="object-contain w-full"
+          style={{ maxHeight: 64 }}
+        />
       </div>
 
       {/* Nav */}

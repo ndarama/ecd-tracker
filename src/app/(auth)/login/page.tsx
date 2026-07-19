@@ -36,13 +36,13 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-lg px-8 py-10">
           {/* Branding */}
           <div className="mb-8 text-center">
-            <span className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-600 text-white text-2xl font-bold mb-4">
-              E
-            </span>
-            <h1 className="text-2xl font-bold text-gray-900">ECD Tracker</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Early Childhood Development System
-            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="ECD Tracker"
+              className="mx-auto object-contain"
+              style={{ maxWidth: 320, height: "auto" }}
+            />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
