@@ -51,6 +51,10 @@ model Child {
   caregiverName  String
   caregiverPhone String?
 
+  // New relation to normalized Caregiver model. Kept optional for safe in-place migration.
+  caregiver    Caregiver? @relation(fields: [caregiverId], references: [id])
+  caregiverId  String?
+
   chw    User   @relation("AssignedCHW", fields: [chwId], references: [id])
   chwId  String
 
@@ -71,6 +75,20 @@ enum NutritionStatus {
   MODERATE_MALNUTRITION
   SEVERE_MALNUTRITION
   OVERWEIGHT
+}
+
+// ─── Caregivers (normalized) ─────────────────────────────────────────────────
+
+model Caregiver {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?  @unique
+  village   String?
+
+  children  Child[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model GrowthRecord {

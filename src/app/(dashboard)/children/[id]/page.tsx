@@ -31,6 +31,7 @@ export default async function ChildDetailPage({
       where: { id },
       include: {
         chw: { select: { name: true } },
+        caregiver: { select: { name: true, phone: true } },
         growthRecords: { orderBy: { date: "desc" } },
         immunizations: { orderBy: { dueDate: "asc" } },
         milestones: { orderBy: { createdAt: "desc" } },
@@ -86,11 +87,8 @@ export default async function ChildDetailPage({
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <InfoCard label="Caregiver" value={child.caregiverName} />
-        <InfoCard
-          label="Phone"
-          value={child.caregiverPhone ?? "—"}
-        />
+            <InfoCard label="Caregiver" value={child.caregiver?.name ?? child.caregiverName} />
+            <InfoCard label="Phone" value={child.caregiver?.phone ?? child.caregiverPhone ?? "—"} />
         <InfoCard
           label="Weight"
           value={latestGrowth?.weightKg ? `${latestGrowth.weightKg} kg` : "—"}
@@ -176,7 +174,7 @@ function OverviewTab({ child, session }: { child: any; session: any }) {
           <Row label="Gender" value={child.gender === "MALE" ? "Male" : "Female"} />
           <Row label="Village" value={child.village} />
           <Row label="Caregiver" value={child.caregiverName} />
-          <Row label="Phone" value={child.caregiverPhone ?? "—"} />
+          <Row label="Phone" value={child.caregiver?.phone ?? child.caregiverPhone ?? "—"} />
           <Row label="Assigned CHW" value={child.chw.name} />
           <Row
             label="Registered"

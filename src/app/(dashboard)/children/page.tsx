@@ -23,6 +23,7 @@ export default async function ChildrenPage({ searchParams }: Props) {
               { firstName: { contains: q } },
               { lastName: { contains: q } },
               { caregiverName: { contains: q } },
+              { caregiver: { name: { contains: q } } },
               { village: { contains: q } },
             ],
           }
@@ -30,6 +31,7 @@ export default async function ChildrenPage({ searchParams }: Props) {
     },
     include: {
       chw: { select: { name: true } },
+      caregiver: { select: { name: true } },
       _count: { select: { visits: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -113,7 +115,7 @@ export default async function ChildrenPage({ searchParams }: Props) {
                     <td className="px-5 py-3.5 text-gray-600">{ageLabel}</td>
                     <td className="px-5 py-3.5 text-gray-600">{child.village}</td>
                     <td className="px-5 py-3.5 text-gray-600">
-                      {child.caregiverName}
+                      {child.caregiver?.name ?? child.caregiverName}
                     </td>
                     {isAdmin && (
                       <td className="px-5 py-3.5 text-gray-600">

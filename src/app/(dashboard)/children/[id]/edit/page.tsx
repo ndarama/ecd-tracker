@@ -11,7 +11,7 @@ interface Props {
 
 export default async function EditChildPage({ params }: Props) {
   const { id } = await params;
-  const child = await prisma.child.findUnique({ where: { id } });
+  const child = await prisma.child.findUnique({ where: { id }, include: { caregiver: true } });
   if (!child) notFound();
 
   const action = updateChild.bind(null, id);
@@ -102,7 +102,7 @@ export default async function EditChildPage({ params }: Props) {
             <input
               name="caregiverName"
               required
-              defaultValue={child.caregiverName}
+              defaultValue={child.caregiver?.name ?? child.caregiverName}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -110,7 +110,7 @@ export default async function EditChildPage({ params }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <input
               name="caregiverPhone"
-              defaultValue={child.caregiverPhone ?? ""}
+              defaultValue={child.caregiver?.phone ?? child.caregiverPhone ?? ""}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>

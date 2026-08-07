@@ -12,6 +12,23 @@ export async function createChild(formData: FormData) {
 
   const dob = formData.get("dateOfBirth") as string;
 
+  const caregiverName = (formData.get("caregiverName") as string) || "";
+  const caregiverPhone = (formData.get("caregiverPhone") as string) || null;
+  const village = (formData.get("village") as string) || undefined;
+
+  let caregiver;
+  if (caregiverPhone) {
+    caregiver = await prisma.caregiver.upsert({
+      where: { phone: caregiverPhone },
+      update: { name: caregiverName, village },
+      create: { name: caregiverName, phone: caregiverPhone, village },
+    });
+  } else {
+    caregiver = await prisma.caregiver.create({
+      data: { name: caregiverName, phone: null, village },
+    });
+  }
+
   await prisma.child.create({
     data: {
       firstName: formData.get("firstName") as string,
@@ -19,8 +36,9 @@ export async function createChild(formData: FormData) {
       dateOfBirth: new Date(dob),
       gender: formData.get("gender") as Gender,
       village: formData.get("village") as string,
-      caregiverName: formData.get("caregiverName") as string,
-      caregiverPhone: (formData.get("caregiverPhone") as string) || null,
+      caregiverName: caregiverName,
+      caregiverPhone: caregiverPhone,
+      caregiverId: caregiver.id,
       chwId: session.user.id,
     },
   });
@@ -35,6 +53,31 @@ export async function updateChild(id: string, formData: FormData) {
 
   const dob = formData.get("dateOfBirth") as string;
 
+  const caregiverName = (formData.get("caregiverName") as string) || "";
+  const caregiverPhone = (formData.get("caregiverPhone") as string) || null;
+  const village = (formData.get("village") as string) || undefined;
+
+  // Determine or create caregiver
+  let caregiverId: string | null = null;
+  if (caregiverPhone) {
+    const cg = await prisma.caregiver.upsert({
+      where: { phone: caregiverPhone },
+      update: { name: caregiverName, village },
+      create: { name: caregiverName, phone: caregiverPhone, village },
+    });
+    caregiverId = cg.id;
+  } else {
+    // If child already has a caregiver, update it; otherwise create a new caregiver
+    const existing = await prisma.child.findUnique({ where: { id }, select: { caregiverId: true } });
+    if (existing?.caregiverId) {
+      await prisma.caregiver.update({ where: { id: existing.caregiverId }, data: { name: caregiverName, village } });
+      caregiverId = existing.caregiverId;
+    } else {
+      const cg = await prisma.caregiver.create({ data: { name: caregiverName, phone: null, village } });
+      caregiverId = cg.id;
+    }
+  }
+
   await prisma.child.update({
     where: { id },
     data: {
@@ -43,8 +86,9 @@ export async function updateChild(id: string, formData: FormData) {
       dateOfBirth: new Date(dob),
       gender: formData.get("gender") as Gender,
       village: formData.get("village") as string,
-      caregiverName: formData.get("caregiverName") as string,
-      caregiverPhone: (formData.get("caregiverPhone") as string) || null,
+      caregiverName: caregiverName,
+      caregiverPhone: caregiverPhone,
+      caregiverId: caregiverId,
     },
   });
 
