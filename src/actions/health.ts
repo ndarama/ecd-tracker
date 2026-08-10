@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NutritionStatus, MilestoneCategory } from "@/generated/prisma/client";
 
@@ -50,6 +51,38 @@ export async function markImmunizationGiven(id: string, childId: string) {
     data: { givenDate: new Date() },
   });
   revalidatePath(`/children/${childId}`);
+}
+
+export async function createVaccineReminder(immunizationId: string) {
+  const session = await auth();
+  if (!session) throw new Error("Unauthorised");
+
+  const immunization = await prisma.immunization.findUnique({
+    where: { id: immunizationId },
+    include: { child: { include: { caregiver: true } } },
+  });
+  if (!immunization) throw new Error("Immunization not found");
+  if (immunization.givenDate) throw new Error("This vaccine has already been given");
+
+  const existing = await prisma.reminder.findFirst({
+    where: { immunizationId, status: "PENDING" },
+  });
+  if (!existing) {
+    await prisma.reminder.create({
+      data: {
+        childId: immunization.childId,
+        immunizationId,
+        type: "VACCINE",
+        dueDate: immunization.dueDate,
+        caregiverName: immunization.child.caregiver?.name ?? immunization.child.caregiverName,
+        caregiverPhone: immunization.child.caregiver?.phone ?? immunization.child.caregiverPhone,
+        message: `Reminder for ${immunization.child.firstName} ${immunization.child.lastName}: ${immunization.vaccine} is due on ${immunization.dueDate.toISOString().slice(0, 10)}.`,
+      },
+    });
+  }
+
+  revalidatePath("/notifications");
+  revalidatePath(`/children/${immunization.childId}`);
 }
 
 export async function createMilestone(formData: FormData) {

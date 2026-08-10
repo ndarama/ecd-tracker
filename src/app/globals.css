@@ -24,3 +24,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  .no-print,
+  aside,
+  header {
+    display: none !important;
+  }
+
+  body,
+  main {
+    background: #ffffff !important;
+    color: #171717 !important;
+  }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .report-page,
+  .report-document {
+    margin: 0 !important;
+    max-width: none !important;
+    box-shadow: none !important;
+  }
+
+  .report-document {
+    border: 0 !important;
+    padding: 0 !important;
+    ring: none !important;
+  }
+}

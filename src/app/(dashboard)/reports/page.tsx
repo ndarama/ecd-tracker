@@ -1,229 +1,164 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { subDays, format, startOfMonth, endOfMonth } from "date-fns";
+import {
+  getReportOptions,
+  getReportStats,
+} from "@/lib/reporting";
+import { endOfMonth, format, startOfMonth } from "date-fns";
+import PrintButton from "@/components/reports/PrintButton";
 
-export default async function ReportsPage() {
+interface Props {
+  searchParams: Promise<{
+    month?: string;
+    village?: string;
+    chwId?: string;
+  }>;
+}
+
+function monthBounds(month: string | undefined) {
+  const selected = month && /^\d{4}-\d{2}$/.test(month)
+    ? new Date(`${month}-01T00:00:00`)
+    : new Date();
+
+  return {
+    month: format(selected, "yyyy-MM"),
+    from: format(startOfMonth(selected), "yyyy-MM-dd"),
+    to: format(endOfMonth(selected), "yyyy-MM-dd"),
+    label: format(selected, "MMMM yyyy"),
+  };
+}
+
+export default async function ReportsPage({ searchParams }: Props) {
   const session = await auth();
-  const isAdmin =
+  const canReport =
     session?.user.role === "ADMIN" || session?.user.role === "SUPERVISOR";
+  const params = await searchParams;
+  const period = monthBounds(params.month);
 
-  const now = new Date();
-  const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
+  if (!canReport) {
+    return (
+      <div className="bg-white rounded-xl ring-1 ring-gray-200 p-10 text-center">
+        <h1 className="text-lg font-semibold text-gray-900">Reports unavailable</h1>
+        <p className="mt-2 text-sm text-gray-500">Only supervisors and administrators can view reports.</p>
+      </div>
+    );
+  }
 
-  const [
-    totalChildren,
-    childrenThisMonth,
-    totalVisits,
-    completedVisits,
-    missedVisits,
-    scheduledVisits,
-    pendingReferrals,
-    completedReferrals,
-    nutritionData,
-    villageData,
-    chwData,
-  ] = await Promise.all([
-    prisma.child.count(),
-    prisma.child.count({
-      where: { createdAt: { gte: monthStart, lte: monthEnd } },
-    }),
-    prisma.homeVisit.count(),
-    prisma.homeVisit.count({ where: { status: "COMPLETED" } }),
-    prisma.homeVisit.count({ where: { status: "MISSED" } }),
-    prisma.homeVisit.count({ where: { status: "SCHEDULED" } }),
-    prisma.referral.count({ where: { status: "PENDING" } }),
-    prisma.referral.count({ where: { status: "COMPLETED" } }),
-    prisma.growthRecord.groupBy({
-      by: ["nutritionStatus"],
-      _count: { _all: true },
-      where: { nutritionStatus: { not: null } },
-    }),
-    prisma.child.groupBy({
-      by: ["village"],
-      _count: { _all: true },
-      orderBy: { _count: { village: "desc" } },
-      take: 8,
-    }),
-    isAdmin
-      ? prisma.user.findMany({
-          where: { role: "CHW" },
-          include: {
-            _count: { select: { children: true, visits: true } },
-          },
-        })
-      : [],
+  const filters = {
+    village: params.village,
+    chwId: params.chwId,
+    from: period.from,
+    to: period.to,
+  };
+  const [stats, options] = await Promise.all([
+    getReportStats(filters),
+    getReportOptions(),
   ]);
-
-  const visitRate =
-    totalVisits > 0 ? Math.round((completedVisits / totalVisits) * 100) : 0;
+  const completionRate = stats.visits.total > 0
+    ? Math.round((stats.visits.completed / stats.visits.total) * 100)
+    : 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {format(now, "MMMM yyyy")} · System overview
-        </p>
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Total Children" value={totalChildren} sub={`+${childrenThisMonth} this month`} color="emerald" />
-        <StatCard label="Visit Completion" value={`${visitRate}%`} sub={`${completedVisits} of ${totalVisits}`} color="blue" />
-        <StatCard label="Scheduled Visits" value={scheduledVisits} sub="upcoming" color="violet" />
-        <StatCard label="Pending Referrals" value={pendingReferrals} sub={`${completedReferrals} resolved`} color="amber" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Visit breakdown */}
-        <div className="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-          <h2 className="font-semibold text-gray-800 mb-4">Visit Status Breakdown</h2>
-          <div className="space-y-3">
-            <Bar label="Completed" value={completedVisits} total={totalVisits} color="bg-green-500" />
-            <Bar label="Scheduled" value={scheduledVisits} total={totalVisits} color="bg-blue-500" />
-            <Bar label="Missed" value={missedVisits} total={totalVisits} color="bg-red-400" />
-          </div>
+    <div className="report-page space-y-6">
+      <div className="no-print flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Monthly Reports</h1>
+          <p className="mt-0.5 text-sm text-gray-500">Child health and follow-up records</p>
         </div>
+        <PrintButton />
+      </div>
 
-        {/* Nutrition */}
-        <div className="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-          <h2 className="font-semibold text-gray-800 mb-4">Nutrition Status (All Records)</h2>
-          {nutritionData.length === 0 ? (
-            <p className="text-sm text-gray-400">No growth records yet.</p>
+      <form method="get" className="no-print bg-white rounded-xl ring-1 ring-gray-200 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <input name="month" type="month" defaultValue={period.month} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+        <select name="village" defaultValue={params.village ?? ""} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+          <option value="">All villages</option>
+          {options.villages.map((village) => <option key={village} value={village}>{village}</option>)}
+        </select>
+        <select name="chwId" defaultValue={params.chwId ?? ""} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+          <option value="">All CHWs</option>
+          {options.chws.map((chw) => <option key={chw.id} value={chw.id}>{chw.name}</option>)}
+        </select>
+        <button type="submit" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Generate report</button>
+        <a href="/reports" className="rounded-lg border border-gray-300 px-3 py-2 text-center text-sm text-gray-600">Reset</a>
+      </form>
+
+      <article className="report-document bg-white rounded-xl ring-1 ring-gray-200 p-6 shadow-sm">
+        <header className="border-b border-gray-200 pb-5">
+          <h2 className="text-xl font-bold text-gray-900">ECD Child Health Report</h2>
+          <p className="mt-1 text-sm text-gray-500">Reporting period: {period.label}</p>
+          <p className="text-sm text-gray-500">
+            {params.village ? `Village: ${params.village}` : "All villages"} · {params.chwId ? "Filtered CHW" : "All CHWs"}
+          </p>
+        </header>
+
+        <section className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <ReportCard label="Registered children" value={stats.registeredChildren} />
+          <ReportCard label="Growth records" value={stats.growthRecords} />
+          <ReportCard label="Home visits" value={stats.visits.total} />
+          <ReportCard label="Referrals" value={stats.referrals.total} />
+        </section>
+
+        <section className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <ReportSection title="Immunization status">
+            <ReportRow label="Given" value={stats.immunizations.given} />
+            <ReportRow label="Pending" value={stats.immunizations.pending} />
+            <ReportRow label="Overdue" value={stats.immunizations.overdue} />
+          </ReportSection>
+          <ReportSection title="Home visit status">
+            <ReportRow label="Completed" value={stats.visits.completed} />
+            <ReportRow label="Scheduled" value={stats.visits.scheduled} />
+            <ReportRow label="Missed" value={stats.visits.missed} />
+            <ReportRow label="Completion rate" value={`${completionRate}%`} />
+          </ReportSection>
+          <ReportSection title="Referral status">
+            <ReportRow label="Pending" value={stats.referrals.pending} />
+            <ReportRow label="Completed" value={stats.referrals.completed} />
+            <ReportRow label="Cancelled" value={stats.referrals.cancelled} />
+          </ReportSection>
+        </section>
+
+        <section className="mt-8">
+          <h3 className="mb-3 text-base font-semibold text-gray-800">Growth and nutrition</h3>
+          {stats.nutrition.length === 0 ? (
+            <p className="text-sm text-gray-500">No nutrition records for this period.</p>
           ) : (
-            <div className="space-y-3">
-              {nutritionData.map((n) => (
-                <div key={String(n.nutritionStatus)} className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600 w-44 shrink-0">
-                    {formatNutrition(String(n.nutritionStatus))}
-                  </span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-2">
-                    <div
-                      className="bg-emerald-500 h-2 rounded-full"
-                      style={{
-                        width: `${Math.round(
-                          (n._count._all /
-                            nutritionData.reduce((s, x) => s + x._count._all, 0)) *
-                            100
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-sm text-gray-500 w-6 text-right">
-                    {n._count._all}
-                  </span>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {stats.nutrition.map((item) => <ReportCard key={item.status} label={item.status.replaceAll("_", " ")} value={item.count} />)}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Children by village */}
-        <div className="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-          <h2 className="font-semibold text-gray-800 mb-4">Children by Village</h2>
-          {villageData.length === 0 ? (
-            <p className="text-sm text-gray-400">No data yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {villageData.map((v) => (
-                <Bar
-                  key={v.village}
-                  label={v.village}
-                  value={v._count._all}
-                  total={totalChildren}
-                  color="bg-emerald-500"
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* CHW performance (admins only) */}
-        {isAdmin && (chwData as typeof chwData).length > 0 && (
-          <div className="bg-white rounded-xl ring-1 ring-gray-200 p-5">
-            <h2 className="font-semibold text-gray-800 mb-4">CHW Performance</h2>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200">
-                  <th className="pb-2">CHW</th>
-                  <th className="pb-2">Children</th>
-                  <th className="pb-2">Visits</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {(chwData as typeof chwData).map((chw) => (
-                  <tr key={chw.id}>
-                    <td className="py-2.5 text-gray-800 font-medium">{chw.name}</td>
-                    <td className="py-2.5 text-gray-600">{chw._count.children}</td>
-                    <td className="py-2.5 text-gray-600">{chw._count.visits}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        <footer className="mt-10 border-t border-gray-200 pt-4 text-xs text-gray-500">
+          Generated {format(new Date(), "dd MMM yyyy, HH:mm")}
+        </footer>
+      </article>
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  sub,
-  color,
-}: {
-  label: string;
-  value: string | number;
-  sub: string;
-  color: string;
-}) {
-  const ring =
-    color === "emerald"
-      ? "ring-emerald-200"
-      : color === "blue"
-      ? "ring-blue-200"
-      : color === "violet"
-      ? "ring-violet-200"
-      : "ring-amber-200";
-
+function ReportCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className={`bg-white rounded-xl ring-1 ${ring} p-5 shadow-sm`}>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
-      <p className="text-xs text-gray-400 mt-1">{sub}</p>
+    <div className="rounded-lg bg-gray-50 p-4 ring-1 ring-gray-200">
+      <p className="text-xs capitalize text-gray-500">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
     </div>
   );
 }
 
-function Bar({
-  label,
-  value,
-  total,
-  color,
-}: {
-  label: string;
-  value: number;
-  total: number;
-  color: string;
-}) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm text-gray-600 w-36 shrink-0 truncate">{label}</span>
-      <div className="flex-1 bg-gray-100 rounded-full h-2">
-        <div className={`${color} h-2 rounded-full`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-sm text-gray-500 w-8 text-right">{value}</span>
+    <div>
+      <h3 className="mb-3 text-base font-semibold text-gray-800">{title}</h3>
+      <div className="space-y-2">{children}</div>
     </div>
   );
 }
 
-function formatNutrition(s: string) {
-  return s
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+function ReportRow({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-gray-100 pb-2 text-sm">
+      <span className="text-gray-500">{label}</span>
+      <span className="font-semibold text-gray-900">{value}</span>
+    </div>
+  );
 }
 

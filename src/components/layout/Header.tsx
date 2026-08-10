@@ -7,7 +7,7 @@ import { addDays } from "date-fns";
 async function getNotificationCount(chwId: string, isAdmin: boolean) {
   const now = new Date();
   const in7days = addDays(now, 7);
-  const [overdueVaccines, upcomingVisits, dueVaccines] = await Promise.all([
+  const [overdueVaccines, upcomingVisits, overdueFollowUps, dueVaccines] = await Promise.all([
     prisma.immunization.count({
       where: {
         givenDate: null,
@@ -22,6 +22,13 @@ async function getNotificationCount(chwId: string, isAdmin: boolean) {
         visitDate: { gte: now, lte: in7days },
       },
     }),
+    prisma.homeVisit.count({
+      where: {
+        ...(isAdmin ? {} : { chwId }),
+        status: { not: "CANCELLED" },
+        followUpDate: { lt: now },
+      },
+    }),
     prisma.immunization.count({
       where: {
         givenDate: null,
@@ -30,7 +37,7 @@ async function getNotificationCount(chwId: string, isAdmin: boolean) {
       },
     }),
   ]);
-  return overdueVaccines + upcomingVisits + dueVaccines;
+  return overdueVaccines + upcomingVisits + overdueFollowUps + dueVaccines;
 }
 
 export default async function Header() {

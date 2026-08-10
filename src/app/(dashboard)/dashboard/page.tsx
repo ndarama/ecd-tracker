@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getReportOptions, getReportStats, parseReportDateRange } from "@/lib/reporting";
 import Link from "next/link";
 import {
   UsersIcon,
@@ -17,51 +18,39 @@ const VISIT_STATUS_COLORS: Record<string, string> = {
   CANCELLED: "bg-gray-100 text-gray-500",
 };
 
-async function getStats(chwId: string, role: string) {
-  const isAdmin = role === "ADMIN" || role === "SUPERVISOR";
-  const today = new Date();
-  const todayStart = new Date(today.setHours(0, 0, 0, 0));
-  const todayEnd = new Date(today.setHours(23, 59, 59, 999));
-
-  const [children, visitsToday, pendingReferrals, upcomingVisits] =
-    await Promise.all([
-      prisma.child.count({ where: isAdmin ? {} : { chwId } }),
-      prisma.homeVisit.count({
-        where: {
-          ...(isAdmin ? {} : { chwId }),
-          status: "COMPLETED",
-          visitDate: { gte: todayStart, lt: todayEnd },
-        },
-      }),
-      prisma.referral.count({ where: { status: "PENDING" } }),
-      prisma.homeVisit.count({
-        where: {
-          ...(isAdmin ? {} : { chwId }),
-          status: "SCHEDULED",
-          visitDate: { gte: new Date() },
-        },
-      }),
-    ]);
-
-  return { children, visitsToday, pendingReferrals, upcomingVisits };
+interface Props {
+  searchParams: Promise<{ village?: string; chwId?: string; from?: string; to?: string }>;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: Props) {
   const session = await auth();
   const isAdmin =
     session?.user.role === "ADMIN" || session?.user.role === "SUPERVISOR";
+  const params = await searchParams;
+  const filters = {
+    ...params,
+    ...(isAdmin ? {} : { chwId: session!.user.id }),
+  };
+  const dateRange = parseReportDateRange(filters);
+  const childWhere = {
+    ...(filters.village ? { village: filters.village } : {}),
+    ...(filters.chwId ? { chwId: filters.chwId } : {}),
+    ...(dateRange.from || dateRange.to
+      ? { createdAt: { ...(dateRange.from ? { gte: dateRange.from } : {}), ...(dateRange.to ? { lte: dateRange.to } : {}) } }
+      : {}),
+  };
 
-  const [stats, recentChildren, upcomingVisits] = await Promise.all([
-    getStats(session!.user.id, session!.user.role),
+  const [stats, recentChildren, upcomingVisits, options] = await Promise.all([
+    getReportStats(filters),
     prisma.child.findMany({
-      where: isAdmin ? {} : { chwId: session!.user.id },
+      where: childWhere,
       orderBy: { createdAt: "desc" },
       take: 5,
       include: { _count: { select: { visits: true } } },
     }),
     prisma.homeVisit.findMany({
       where: {
-        ...(isAdmin ? {} : { chwId: session!.user.id }),
+        child: childWhere,
         status: "SCHEDULED",
         visitDate: { gte: new Date() },
       },
@@ -71,20 +60,21 @@ export default async function DashboardPage() {
         child: { select: { firstName: true, lastName: true, village: true } },
       },
     }),
+    isAdmin ? getReportOptions() : Promise.resolve({ villages: [], chws: [] }),
   ]);
 
   const cards = [
     {
       label: "Registered Children",
-      value: stats.children,
+      value: stats.registeredChildren,
       icon: UsersIcon,
       color: "bg-emerald-50 text-emerald-700",
       ring: "ring-emerald-200",
       href: "/children",
     },
     {
-      label: "Visits Today",
-      value: stats.visitsToday,
+      label: "Completed Visits",
+      value: stats.visits.completed,
       icon: ClipboardDocumentListIcon,
       color: "bg-blue-50 text-blue-700",
       ring: "ring-blue-200",
@@ -92,7 +82,7 @@ export default async function DashboardPage() {
     },
     {
       label: "Upcoming Visits",
-      value: stats.upcomingVisits,
+      value: stats.visits.scheduled,
       icon: CalendarDaysIcon,
       color: "bg-violet-50 text-violet-700",
       ring: "ring-violet-200",
@@ -100,7 +90,7 @@ export default async function DashboardPage() {
     },
     {
       label: "Pending Referrals",
-      value: stats.pendingReferrals,
+      value: stats.referrals.pending,
       icon: ExclamationTriangleIcon,
       color: "bg-amber-50 text-amber-700",
       ring: "ring-amber-200",
@@ -117,6 +107,25 @@ export default async function DashboardPage() {
           {format(new Date(), "EEEE, dd MMM yyyy")}
         </p>
       </div>
+
+      {isAdmin && (
+        <form method="get" className="dashboard-filters bg-white rounded-xl ring-1 ring-gray-200 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <select name="village" defaultValue={params.village ?? ""} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">All villages</option>
+            {options.villages.map((village) => <option key={village} value={village}>{village}</option>)}
+          </select>
+          <select name="chwId" defaultValue={params.chwId ?? ""} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+            <option value="">All CHWs</option>
+            {options.chws.map((chw) => <option key={chw.id} value={chw.id}>{chw.name}</option>)}
+          </select>
+          <input name="from" type="date" defaultValue={params.from} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          <input name="to" type="date" defaultValue={params.to} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          <div className="flex gap-2">
+            <button type="submit" className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">Filter</button>
+            <Link href="/dashboard" className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600">Reset</Link>
+          </div>
+        </form>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -138,6 +147,30 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl ring-1 ring-gray-200 shadow-sm p-5">
+          <h2 className="text-base font-semibold text-gray-800 mb-4">Child Health Statistics</h2>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <Metric label="Growth records" value={stats.growthRecords} />
+            <Metric label="Vaccines given" value={stats.immunizations.given} />
+            <Metric label="Vaccines pending" value={stats.immunizations.pending} />
+            <Metric label="Vaccines overdue" value={stats.immunizations.overdue} />
+          </div>
+          {stats.nutrition.length > 0 && (
+            <div className="mt-4 border-t border-gray-100 pt-3 space-y-2">
+              {stats.nutrition.map((item) => <Metric key={item.status} label={item.status.replaceAll("_", " ")} value={item.count} />)}
+            </div>
+          )}
+        </div>
+        <div className="bg-white rounded-xl ring-1 ring-gray-200 shadow-sm p-5">
+          <h2 className="text-base font-semibold text-gray-800 mb-4">Follow-up Records</h2>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <Metric label="Visits completed" value={stats.visits.completed} />
+            <Metric label="Visits missed" value={stats.visits.missed} />
+            <Metric label="Visits scheduled" value={stats.visits.scheduled} />
+            <Metric label="Pending referrals" value={stats.referrals.pending} />
+            <Metric label="Completed referrals" value={stats.referrals.completed} />
+          </div>
+        </div>
         {/* Recent children */}
         <div className="bg-white rounded-xl ring-1 ring-gray-200 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -249,6 +282,15 @@ export default async function DashboardPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-gray-500 capitalize">{label}</span>
+      <span className="font-semibold text-gray-900">{value}</span>
     </div>
   );
 }

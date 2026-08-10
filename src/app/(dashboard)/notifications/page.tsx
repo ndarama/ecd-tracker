@@ -1,8 +1,9 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { format, isPast, isWithinInterval, addDays } from "date-fns";
+import { createVaccineReminder } from "@/actions/health";
+import { format, addDays } from "date-fns";
 import Link from "next/link";
-import { BellIcon, CalendarDaysIcon, BeakerIcon } from "@heroicons/react/24/outline";
+import { BellIcon, CalendarDaysIcon, BeakerIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
 
 export default async function NotificationsPage() {
@@ -12,7 +13,7 @@ export default async function NotificationsPage() {
   const now = new Date();
   const in7days = addDays(now, 7);
 
-  const [upcomingVisits, overdueVaccines, dueVaccines] = await Promise.all([
+  const [upcomingVisits, overdueFollowUps, overdueVaccines, dueVaccines] = await Promise.all([
     // Scheduled visits in next 7 days
     prisma.homeVisit.findMany({
       where: {
@@ -24,6 +25,19 @@ export default async function NotificationsPage() {
         child: { select: { id: true, firstName: true, lastName: true, village: true } },
       },
       orderBy: { visitDate: "asc" },
+    }),
+    // Follow-ups that are overdue and have not been cancelled.
+    prisma.homeVisit.findMany({
+      where: {
+        ...(isAdmin ? {} : { chwId: session!.user.id }),
+        status: { not: "CANCELLED" },
+        followUpDate: { lt: now },
+      },
+      include: {
+        child: { select: { id: true, firstName: true, lastName: true, village: true } },
+      },
+      orderBy: { followUpDate: "asc" },
+      take: 30,
     }),
     // Overdue vaccines (dueDate < today, not given)
     prisma.immunization.findMany({
@@ -47,13 +61,14 @@ export default async function NotificationsPage() {
       },
       include: {
         child: { select: { id: true, firstName: true, lastName: true } },
+        reminders: { where: { status: "PENDING" }, select: { id: true } },
       },
       orderBy: { dueDate: "asc" },
       take: 30,
     }),
   ]);
 
-  const total = upcomingVisits.length + overdueVaccines.length + dueVaccines.length;
+  const total = upcomingVisits.length + overdueFollowUps.length + overdueVaccines.length + dueVaccines.length;
 
   return (
     <div className="space-y-5">
@@ -63,6 +78,25 @@ export default async function NotificationsPage() {
           {total > 0 ? `${total} items need attention` : "All up to date"}
         </p>
       </div>
+
+      {overdueFollowUps.length > 0 && (
+        <Section
+          icon={<ExclamationTriangleIcon className="w-5 h-5" />}
+          title={`Overdue Follow-ups (${overdueFollowUps.length})`}
+          color="red"
+        >
+          {overdueFollowUps.map((v) => (
+            <NotifRow
+              key={v.id}
+              title={`${v.child.firstName} ${v.child.lastName} · ${v.child.village}`}
+              sub={`Follow-up due ${format(v.followUpDate!, "EEEE, dd MMM yyyy")}`}
+              badge="OVERDUE"
+              badgeColor="bg-red-100 text-red-700"
+              href={`/children/${v.child.id}?tab=visits`}
+            />
+          ))}
+        </Section>
+      )}
 
       {/* Overdue vaccines */}
       {overdueVaccines.length > 0 && (
@@ -119,6 +153,17 @@ export default async function NotificationsPage() {
               badge="DUE SOON"
               badgeColor="bg-amber-100 text-amber-700"
               href={`/children/${v.child.id}?tab=immunizations`}
+              action={
+                v.reminders.length > 0 ? (
+                  <span className="text-xs text-green-700">Reminder created</span>
+                ) : (
+                  <form action={createVaccineReminder.bind(null, v.id)}>
+                    <button type="submit" className="text-xs font-semibold text-amber-700 hover:text-amber-900">
+                      Remind caregiver
+                    </button>
+                  </form>
+                )
+              }
             />
           ))}
         </Section>
@@ -176,26 +221,28 @@ function NotifRow({
   badge,
   badgeColor,
   href,
+  action,
 }: {
   title: string;
   sub: string;
   badge: string;
   badgeColor: string;
   href: string;
+  action?: React.ReactNode;
 }) {
   return (
-    <Link
-      href={href}
-      className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
-    >
-      <div>
+    <div className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+      <Link href={href} className="min-w-0">
         <p className="text-sm font-medium text-gray-800">{title}</p>
         <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
+      </Link>
+      <div className="flex items-center gap-3 shrink-0">
+        {action}
+        <span className={clsx("text-xs px-2 py-0.5 rounded font-semibold", badgeColor)}>
+          {badge}
+        </span>
       </div>
-      <span className={clsx("text-xs px-2 py-0.5 rounded font-semibold", badgeColor)}>
-        {badge}
-      </span>
-    </Link>
+    </div>
   );
 }
 

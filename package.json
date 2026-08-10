@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:reporting": "tsx scripts/verify-reporting.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
