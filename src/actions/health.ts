@@ -62,6 +62,11 @@ export async function createVaccineReminder(immunizationId: string) {
     include: { child: { include: { caregiver: true } } },
   });
   if (!immunization) throw new Error("Immunization not found");
+  const canManageReminder =
+    session.user.role === "ADMIN" ||
+    session.user.role === "SUPERVISOR" ||
+    immunization.child.chwId === session.user.id;
+  if (!canManageReminder) throw new Error("Forbidden");
   if (immunization.givenDate) throw new Error("This vaccine has already been given");
 
   const existing = await prisma.reminder.findFirst({
