@@ -119,6 +119,27 @@ export default function GrowthTab({
         </form>
       </div>
 
+      {records.length > 1 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <GrowthChart
+            title="Weight trend"
+            unit="kg"
+            color="#059669"
+            points={records
+              .filter((record) => record.weightKg !== null)
+              .map((record) => ({ date: record.date, value: record.weightKg! }))}
+          />
+          <GrowthChart
+            title="Height trend"
+            unit="cm"
+            color="#2563eb"
+            points={records
+              .filter((record) => record.heightCm !== null)
+              .map((record) => ({ date: record.date, value: record.heightCm! }))}
+          />
+        </div>
+      )}
+
       {/* History */}
       {records.length > 0 && (
         <div className="bg-white rounded-xl ring-1 ring-gray-200 overflow-hidden">
@@ -166,6 +187,61 @@ export default function GrowthTab({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function GrowthChart({
+  title,
+  unit,
+  color,
+  points,
+}: {
+  title: string;
+  unit: string;
+  color: string;
+  points: Array<{ date: Date; value: number }>;
+}) {
+  if (points.length < 2) {
+    return (
+      <div className="bg-white rounded-xl ring-1 ring-gray-200 p-5">
+        <h3 className="font-semibold text-gray-800">{title}</h3>
+        <p className="mt-3 text-sm text-gray-400">Add at least two measurements to see a trend.</p>
+      </div>
+    );
+  }
+
+  const width = 640;
+  const height = 220;
+  const padding = { top: 20, right: 20, bottom: 34, left: 46 };
+  const values = points.map((point) => point.value);
+  const minimum = Math.max(0, Math.min(...values) * 0.9);
+  const maximum = Math.max(...values) * 1.1 || 1;
+  const x = (index: number) => padding.left + (index / (points.length - 1)) * (width - padding.left - padding.right);
+  const y = (value: number) => padding.top + ((maximum - value) / (maximum - minimum)) * (height - padding.top - padding.bottom);
+  const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${x(index)} ${y(point.value)}`).join(" ");
+
+  return (
+    <div className="bg-white rounded-xl ring-1 ring-gray-200 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-gray-800">{title}</h3>
+        <span className="text-xs text-gray-500">{unit}</span>
+      </div>
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[480px]" role="img" aria-label={`${title} chart`}>
+          <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="#d1d5db" />
+          <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} stroke="#d1d5db" />
+          <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          {points.map((point, index) => (
+            <g key={`${point.date.toISOString()}-${index}`}>
+              <circle cx={x(index)} cy={y(point.value)} r="4" fill={color} />
+              <text x={x(index)} y={height - 12} textAnchor="middle" fontSize="10" fill="#6b7280">{format(point.date, "dd MMM")}</text>
+            </g>
+          ))}
+          <text x="8" y={padding.top + 4} fontSize="10" fill="#6b7280">{maximum.toFixed(1)}</text>
+          <text x="8" y={height - padding.bottom} fontSize="10" fill="#6b7280">{minimum.toFixed(1)}</text>
+        </svg>
+      </div>
     </div>
   );
 }

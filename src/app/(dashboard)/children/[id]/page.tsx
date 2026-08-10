@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import {
   ArrowLeftIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 import { differenceInMonths, format } from "date-fns";
 import GrowthTab from "./tabs/GrowthTab";
+import NutritionTab from "./tabs/NutritionTab";
 import ImmunizationsTab from "./tabs/ImmunizationsTab";
 import MilestonesTab from "./tabs/MilestonesTab";
 import VisitsTab from "./tabs/VisitsTab";
@@ -17,7 +17,7 @@ interface Props {
   searchParams: Promise<{ tab?: string }>;
 }
 
-const TABS = ["overview", "growth", "immunizations", "milestones", "visits"];
+const TABS = ["overview", "growth", "nutrition", "immunizations", "milestones", "visits"];
 
 export default async function ChildDetailPage({
   params,
@@ -26,24 +26,26 @@ export default async function ChildDetailPage({
   const { id } = await params;
   const { tab = "overview" } = await searchParams;
 
-  const [child, session] = await Promise.all([
-    prisma.child.findUnique({
+  const child = await prisma.child.findUnique({
       where: { id },
       include: {
         chw: { select: { name: true } },
         caregiver: { select: { name: true, phone: true } },
+        household: { select: { address: true, village: true } },
         growthRecords: { orderBy: { date: "desc" } },
+        nutritionScreenings: { orderBy: { date: "desc" } },
         immunizations: { orderBy: { dueDate: "asc" } },
         milestones: { orderBy: { createdAt: "desc" } },
         visits: {
           orderBy: { visitDate: "desc" },
-          include: { chw: { select: { name: true } } },
+          include: {
+            chw: { select: { name: true } },
+            reminders: { where: { status: { in: ["PENDING", "SENT"] } }, select: { id: true } },
+          },
         },
         referrals: { orderBy: { referralDate: "desc" } },
       },
-    }),
-    auth(),
-  ]);
+    });
 
   if (!child) notFound();
 
@@ -75,6 +77,13 @@ export default async function ChildDetailPage({
               {child.village}
             </p>
           </div>
+          {child.profileImage && (
+            <img
+              src={child.profileImage}
+              alt={`${child.firstName} ${child.lastName}`}
+              className="h-14 w-14 rounded-full object-cover ring-2 ring-emerald-100"
+            />
+          )}
         </div>
         <Link
           href={`/children/${id}/edit`}
@@ -87,8 +96,8 @@ export default async function ChildDetailPage({
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <InfoCard label="Caregiver" value={child.caregiver?.name ?? child.caregiverName} />
-            <InfoCard label="Phone" value={child.caregiver?.phone ?? child.caregiverPhone ?? "—"} />
+            <InfoCard label="Caregiver" value={child.caregiver?.name ?? "—"} />
+            <InfoCard label="Phone" value={child.caregiver?.phone ?? "—"} />
         <InfoCard
           label="Weight"
           value={latestGrowth?.weightKg ? `${latestGrowth.weightKg} kg` : "—"}
@@ -121,10 +130,13 @@ export default async function ChildDetailPage({
       {/* Tab content */}
       <div>
         {tab === "overview" && (
-          <OverviewTab child={child} session={session} />
+          <OverviewTab child={child} />
         )}
         {tab === "growth" && (
           <GrowthTab childId={id} records={child.growthRecords} />
+        )}
+        {tab === "nutrition" && (
+          <NutritionTab childId={id} records={child.nutritionScreenings} />
         )}
         {tab === "immunizations" && (
           <ImmunizationsTab childId={id} records={child.immunizations} />
@@ -137,7 +149,6 @@ export default async function ChildDetailPage({
             childId={id}
             visits={child.visits}
             referrals={child.referrals}
-            session={session}
           />
         )}
       </div>
@@ -155,7 +166,7 @@ function InfoCard({ label, value }: { label: string; value: string }) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function OverviewTab({ child, session }: { child: any; session: any }) {
+function OverviewTab({ child }: { child: any }) {
   const lastVisit = child.visits[0];
   const pendingImmunizations = child.immunizations.filter(
     (i: { givenDate: Date | null }) => !i.givenDate
@@ -173,8 +184,9 @@ function OverviewTab({ child, session }: { child: any; session: any }) {
           />
           <Row label="Gender" value={child.gender === "MALE" ? "Male" : "Female"} />
           <Row label="Village" value={child.village} />
-          <Row label="Caregiver" value={child.caregiverName} />
-          <Row label="Phone" value={child.caregiver?.phone ?? child.caregiverPhone ?? "—"} />
+          <Row label="Caregiver" value={child.caregiver?.name ?? "—"} />
+          <Row label="Phone" value={child.caregiver?.phone ?? "—"} />
+          <Row label="Household address" value={child.household?.address ?? "—"} />
           <Row label="Assigned CHW" value={child.chw.name} />
           <Row
             label="Registered"
@@ -193,6 +205,9 @@ function OverviewTab({ child, session }: { child: any; session: any }) {
               <Row label="By" value={lastVisit.chw.name} />
               {lastVisit.observations && (
                 <Row label="Observations" value={lastVisit.observations} />
+              )}
+              {lastVisit.recommendations && (
+                <Row label="Recommendations" value={lastVisit.recommendations} />
               )}
               {lastVisit.followUpDate && (
                 <Row

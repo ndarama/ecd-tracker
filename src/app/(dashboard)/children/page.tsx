@@ -22,7 +22,6 @@ export default async function ChildrenPage({ searchParams }: Props) {
             OR: [
               { firstName: { contains: q } },
               { lastName: { contains: q } },
-              { caregiverName: { contains: q } },
               { caregiver: { name: { contains: q } } },
               { village: { contains: q } },
             ],
@@ -115,7 +114,7 @@ export default async function ChildrenPage({ searchParams }: Props) {
                     <td className="px-5 py-3.5 text-gray-600">{ageLabel}</td>
                     <td className="px-5 py-3.5 text-gray-600">{child.village}</td>
                     <td className="px-5 py-3.5 text-gray-600">
-                      {child.caregiver?.name ?? child.caregiverName}
+                      {child.caregiver?.name ?? "—"}
                     </td>
                     {isAdmin && (
                       <td className="px-5 py-3.5 text-gray-600">

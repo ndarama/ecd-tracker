@@ -48,17 +48,18 @@ model Child {
   dateOfBirth    DateTime
   gender         Gender
   village        String
-  caregiverName  String
-  caregiverPhone String?
+  profileImage   String?
 
-  // New relation to normalized Caregiver model. Kept optional for safe in-place migration.
-  caregiver    Caregiver? @relation(fields: [caregiverId], references: [id])
-  caregiverId  String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  householdId String?
+  caregiver   Caregiver? @relation(fields: [caregiverId], references: [id], onDelete: SetNull)
+  caregiverId String?
 
   chw    User   @relation("AssignedCHW", fields: [chwId], references: [id])
   chwId  String
 
   growthRecords  GrowthRecord[]
+  nutritionScreenings NutritionScreening[]
   immunizations  Immunization[]
   milestones     Milestone[]
   visits         HomeVisit[]
@@ -78,18 +79,37 @@ enum NutritionStatus {
   OVERWEIGHT
 }
 
+enum BreastfeedingStatus {
+  EXCLUSIVE
+  PARTIAL
+  NOT_BREASTFED
+  NOT_APPLICABLE
+}
+
 // ─── Caregivers (normalized) ─────────────────────────────────────────────────
 
 model Caregiver {
   id        String   @id @default(cuid())
   name      String
   phone     String?  @unique
-  village   String?
+  email     String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  householdId String?
 
   children  Child[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Household {
+  id        String      @id @default(cuid())
+  address   String
+  village   String
+  children  Child[]
+  caregivers Caregiver[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 model GrowthRecord {
@@ -103,6 +123,22 @@ model GrowthRecord {
   nutritionStatus NutritionStatus?
   notes           String?
   createdAt       DateTime         @default(now())
+}
+
+model NutritionScreening {
+  id                    String             @id @default(cuid())
+  child                 Child              @relation(fields: [childId], references: [id], onDelete: Cascade)
+  childId               String
+  date                  DateTime
+  mealDescription       String
+  feedingHabits         String
+  breastfeedingStatus   BreastfeedingStatus
+  nutritionConcerns    String?
+  recommendedSupport   String?
+  notes                 String?
+  createdAt             DateTime           @default(now())
+
+  @@index([childId, date])
 }
 
 model Immunization {
@@ -153,6 +189,7 @@ model HomeVisit {
   chwId         String
   visitDate     DateTime
   observations  String?
+  recommendations String?
   followUpDate  DateTime?
   status        VisitStatus @default(SCHEDULED)
   reminders     Reminder[]
@@ -202,7 +239,10 @@ model Reminder {
   dueDate        DateTime
   caregiverName  String
   caregiverPhone String?
+  caregiverEmail String?
   message        String
+  sentAt         DateTime?
+  deliveryError  String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 

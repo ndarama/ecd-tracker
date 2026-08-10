@@ -53,6 +53,8 @@ Community health workers can:
 
 * Register new children
 * Record dates of birth, gender, and identification information
+* Add a household address and village
+* Upload an optional child profile image up to 2 MB
 * Update child information when necessary
 * View a complete child profile
 
@@ -62,10 +64,10 @@ The system will store:
 
 * Parent or caregiver names
 * Phone numbers
-* Home addresses
-* Relationship to the child
-* Household information
-* Emergency contact information
+* Normalized caregiver records linked to children
+* Household records with address and village
+
+Child records reference their caregiver and household instead of duplicating caregiver name and phone fields.
 
 ### Home Visit Tracking
 
@@ -185,7 +187,7 @@ Supervisors will be able to generate reports for:
 
 Reports may be filtered by date, location, health worker, child, or status.
 
-The implemented monthly report supports month, village, and CHW filters and can be printed from the browser. Report data is queried directly from Prisma and includes child registration, growth and nutrition, immunization, home visit, and referral statistics.
+The implemented monthly report supports month, village, and CHW filters and can be printed from the browser. It includes aggregate statistics, a detailed child-by-child health and follow-up table, and a CHW performance table. Supervisors and administrators can also export the filtered report as an Excel-compatible CSV file. Report data is queried directly from Prisma and includes child registration, growth and nutrition, immunization, home visit, and referral statistics.
 
 ## User Roles
 
@@ -218,11 +220,14 @@ Supervisors can:
 Administrators can:
 
 * Manage user accounts
+* Create, edit, and delete CHW, Supervisor, and Super Administrator accounts
 * Assign user roles
 * Manage system settings
 * Control access permissions
 * View system-wide reports
 * Monitor system activity
+
+The Users Management page is available only to Super Administrators. User passwords are hashed with bcrypt, email addresses must be unique, administrators cannot delete their own account, and users with assigned children or home visits cannot be deleted until those records are reassigned.
 
 ## Technology Stack
 
@@ -335,6 +340,17 @@ DATABASE_URL="file:./dev.db"
 NEXTAUTH_URL="http://localhost:3000"
 
 NEXTAUTH_SECRET="replace-with-a-secure-secret"
+
+# SMTP email delivery
+SMTP_HOST="smtp.example.com"
+SMTP_PORT="587"
+SMTP_SECURE="false"
+SMTP_USER="smtp-user"
+SMTP_PASSWORD="smtp-password"
+SMTP_FROM="ECD Tracker <noreply@example.com>"
+
+# Secret for the protected scheduled endpoint
+CRON_SECRET="replace-with-a-cron-secret"
 ```
 
 Do not commit the `.env` file to GitHub.
@@ -420,6 +436,12 @@ npm run test:reporting
 ```
 
 Runs database-backed smoke checks for reporting queries, including village, CHW, and inclusive date-range filters.
+
+```bash
+npm run reminders:send
+```
+
+Sends due pending reminder emails through the configured SMTP server. Schedule this command hourly with Windows Task Scheduler, Linux cron, or a process scheduler. Deployments that provide HTTP cron jobs can instead call `/api/cron/reminders` with `Authorization: Bearer $CRON_SECRET`.
 
 ## Production Deployment with PM2
 

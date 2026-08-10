@@ -1,8 +1,7 @@
 import { format } from "date-fns";
-import { createVisit, updateVisitStatus } from "@/actions/visits";
+import { createVisit, createVisitReminder, updateVisitStatus } from "@/actions/visits";
 import { createReferral, updateReferralStatus } from "@/actions/visits";
 import type { HomeVisit, Referral } from "@/generated/prisma/client";
-import type { Session } from "next-auth";
 import clsx from "clsx";
 
 const VISIT_STATUS_COLORS: Record<string, string> = {
@@ -20,12 +19,11 @@ const REFERRAL_STATUS_COLORS: Record<string, string> = {
 
 interface Props {
   childId: string;
-  visits: (HomeVisit & { chw: { name: string } })[];
+  visits: (HomeVisit & { chw: { name: string }; reminders: { id: string }[] })[];
   referrals: Referral[];
-  session: Session | null;
 }
 
-export default function VisitsTab({ childId, visits, referrals, session }: Props) {
+export default function VisitsTab({ childId, visits, referrals }: Props) {
   return (
     <div className="space-y-6">
       {/* Record Visit */}
@@ -81,6 +79,17 @@ export default function VisitsTab({ childId, visits, referrals, session }: Props
             />
           </div>
 
+          <div className="md:col-span-3">
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Recommendations
+            </label>
+            <textarea
+              name="recommendations"
+              rows={3}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+            />
+          </div>
+
           <div className="md:col-span-3 flex justify-end">
             <button
               type="submit"
@@ -122,6 +131,11 @@ export default function VisitsTab({ childId, visits, referrals, session }: Props
                     {v.observations && (
                       <p className="text-sm text-gray-700 mt-1">{v.observations}</p>
                     )}
+                    {v.recommendations && (
+                      <p className="text-sm text-emerald-700 mt-1">
+                        Recommendations: {v.recommendations}
+                      </p>
+                    )}
                     {v.followUpDate && (
                       <p className="text-xs text-blue-600 mt-1">
                         Follow-up: {format(v.followUpDate, "dd MMM yyyy")}
@@ -130,6 +144,16 @@ export default function VisitsTab({ childId, visits, referrals, session }: Props
                   </div>
                   {v.status === "SCHEDULED" && (
                     <div className="flex gap-2 shrink-0">
+                      {v.reminders.length === 0 && (
+                        <form action={createVisitReminder.bind(null, v.id)}>
+                          <button
+                            type="submit"
+                            className="text-xs text-amber-700 hover:text-amber-900 font-medium"
+                          >
+                            Remind caregiver
+                          </button>
+                        </form>
+                      )}
                       <form action={updateVisitStatus.bind(null, v.id, "COMPLETED")}>
                         <button
                           type="submit"

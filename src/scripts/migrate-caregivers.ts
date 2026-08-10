@@ -6,10 +6,9 @@ async function main() {
   const children = await prisma.child.findMany({
     select: {
       id: true,
-      caregiverName: true,
-      caregiverPhone: true,
       village: true,
       caregiverId: true,
+      householdId: true,
     },
   });
 
@@ -17,11 +16,11 @@ async function main() {
   const nameVillageMap = new Map<string, string>(); // name|village -> caregiverId
 
   for (const c of children) {
-    if (c.caregiverId) continue; // already linked
+    if (c.caregiverId && c.householdId) continue;
 
-    const name = c.caregiverName?.trim();
-    const phone = c.caregiverPhone?.trim() || null;
-    const village = c.village || undefined;
+    const name = "Unknown";
+    const phone = null;
+    const village = c.village;
 
     let caregiverId: string | undefined;
 
@@ -30,34 +29,31 @@ async function main() {
         caregiverId = phoneMap.get(phone) as string;
       } else {
         // try to find existing by phone
-        const existing = await prisma.caregiver.findUnique({ where: { phone } });
-        if (existing) {
-          caregiverId = existing.id;
-        } else {
-          const created = await prisma.caregiver.create({
-            data: { name: name || "", phone, village },
-          });
-          caregiverId = created.id;
-        }
+        const created = await prisma.caregiver.create({ data: { name, phone } });
+        caregiverId = created.id;
         phoneMap.set(phone, caregiverId);
       }
     } else if (name) {
-      const key = `${name.toLowerCase()}|${(village || "").toLowerCase()}`;
+      const key = `${name.toLowerCase()}|${village.toLowerCase()}`;
       if (nameVillageMap.has(key)) {
         caregiverId = nameVillageMap.get(key) as string;
       } else {
-        const created = await prisma.caregiver.create({ data: { name, phone: null, village } });
+        const created = await prisma.caregiver.create({ data: { name, phone: null } });
         caregiverId = created.id;
         nameVillageMap.set(key, caregiverId);
       }
     } else {
       // No caregiver info; create a placeholder caregiver
-      const created = await prisma.caregiver.create({ data: { name: "Unknown", phone: null, village } });
+      const created = await prisma.caregiver.create({ data: { name: "Unknown", phone: null } });
       caregiverId = created.id;
     }
 
     if (caregiverId) {
-      await prisma.child.update({ where: { id: c.id }, data: { caregiverId } });
+      const household = await prisma.household.create({
+        data: { address: "Not provided", village },
+      });
+      await prisma.caregiver.update({ where: { id: caregiverId }, data: { householdId: household.id } });
+      await prisma.child.update({ where: { id: c.id }, data: { caregiverId, householdId: household.id } });
       console.log(`Linked child ${c.id} -> caregiver ${caregiverId}`);
     }
   }

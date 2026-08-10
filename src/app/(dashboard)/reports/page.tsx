@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import {
+  getReportDetails,
   getReportOptions,
   getReportStats,
 } from "@/lib/reporting";
@@ -49,13 +50,17 @@ export default async function ReportsPage({ searchParams }: Props) {
     from: period.from,
     to: period.to,
   };
-  const [stats, options] = await Promise.all([
+  const [stats, details, options] = await Promise.all([
     getReportStats(filters),
+    getReportDetails(filters),
     getReportOptions(),
   ]);
   const completionRate = stats.visits.total > 0
     ? Math.round((stats.visits.completed / stats.visits.total) * 100)
     : 0;
+  const exportParams = new URLSearchParams({ month: period.month });
+  if (params.village) exportParams.set("village", params.village);
+  if (params.chwId) exportParams.set("chwId", params.chwId);
 
   return (
     <div className="report-page space-y-6">
@@ -64,7 +69,15 @@ export default async function ReportsPage({ searchParams }: Props) {
           <h1 className="text-2xl font-bold text-gray-900">Monthly Reports</h1>
           <p className="mt-0.5 text-sm text-gray-500">Child health and follow-up records</p>
         </div>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/reports/export?${exportParams.toString()}`}
+            className="inline-flex items-center rounded-lg border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+          >
+            Export Excel CSV
+          </a>
+          <PrintButton />
+        </div>
       </div>
 
       <form method="get" className="no-print bg-white rounded-xl ring-1 ring-gray-200 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -123,6 +136,76 @@ export default async function ReportsPage({ searchParams }: Props) {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {stats.nutrition.map((item) => <ReportCard key={item.status} label={item.status.replaceAll("_", " ")} value={item.count} />)}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-8">
+          <h3 className="mb-3 text-base font-semibold text-gray-800">CHW performance</h3>
+          {details.performance.length === 0 ? (
+            <p className="text-sm text-gray-500">No CHW activity for this period.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-3 py-2">CHW</th>
+                    <th className="px-3 py-2">Children</th>
+                    <th className="px-3 py-2">Visits</th>
+                    <th className="px-3 py-2">Completed</th>
+                    <th className="px-3 py-2">Pending referrals</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {details.performance.map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-3 py-2 font-medium text-gray-800">{row.name}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.children}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.visits}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.completedVisits}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.pendingReferrals}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="mt-8">
+          <h3 className="mb-3 text-base font-semibold text-gray-800">Child-by-child health and follow-up</h3>
+          {details.children.length === 0 ? (
+            <p className="text-sm text-gray-500">No child records for this period.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <th className="px-3 py-2">Child</th>
+                    <th className="px-3 py-2">Village</th>
+                    <th className="px-3 py-2">CHW</th>
+                    <th className="px-3 py-2">Growth</th>
+                    <th className="px-3 py-2">Vaccines given</th>
+                    <th className="px-3 py-2">Vaccines pending</th>
+                    <th className="px-3 py-2">Visits</th>
+                    <th className="px-3 py-2">Pending referrals</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {details.children.map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-3 py-2 font-medium text-gray-800">{row.name}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.village}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.chwName}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.growthRecords}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.vaccinesGiven}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.vaccinesPending}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.visits}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.pendingReferrals}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </section>

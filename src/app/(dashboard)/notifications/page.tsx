@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createVaccineReminder } from "@/actions/health";
+import { createVisitReminder } from "@/actions/visits";
+import { cancelReminder, completeReminder } from "@/actions/reminders";
 import { format, addDays } from "date-fns";
 import Link from "next/link";
 import { BellIcon, CalendarDaysIcon, BeakerIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
@@ -13,7 +15,7 @@ export default async function NotificationsPage() {
   const now = new Date();
   const in7days = addDays(now, 7);
 
-  const [upcomingVisits, overdueFollowUps, overdueVaccines, dueVaccines] = await Promise.all([
+  const [upcomingVisits, overdueFollowUps, overdueVaccines, dueVaccines, reminders] = await Promise.all([
     // Scheduled visits in next 7 days
     prisma.homeVisit.findMany({
       where: {
@@ -23,6 +25,7 @@ export default async function NotificationsPage() {
       },
       include: {
         child: { select: { id: true, firstName: true, lastName: true, village: true } },
+        reminders: { where: { status: { in: ["PENDING", "SENT"] } }, select: { id: true } },
       },
       orderBy: { visitDate: "asc" },
     }),
@@ -61,14 +64,23 @@ export default async function NotificationsPage() {
       },
       include: {
         child: { select: { id: true, firstName: true, lastName: true } },
-        reminders: { where: { status: "PENDING" }, select: { id: true } },
+        reminders: { where: { status: { in: ["PENDING", "SENT"] } }, select: { id: true } },
       },
       orderBy: { dueDate: "asc" },
       take: 30,
     }),
+    prisma.reminder.findMany({
+      where: {
+        status: { in: ["PENDING", "SENT"] },
+        child: isAdmin ? {} : { chwId: session!.user.id },
+      },
+      include: { child: { select: { id: true, firstName: true, lastName: true, village: true } } },
+      orderBy: { dueDate: "asc" },
+      take: 50,
+    }),
   ]);
 
-  const total = upcomingVisits.length + overdueFollowUps.length + overdueVaccines.length + dueVaccines.length;
+  const total = upcomingVisits.length + overdueFollowUps.length + overdueVaccines.length + dueVaccines.length + reminders.length;
 
   return (
     <div className="space-y-5">
@@ -78,6 +90,22 @@ export default async function NotificationsPage() {
           {total > 0 ? `${total} items need attention` : "All up to date"}
         </p>
       </div>
+
+      {reminders.length > 0 && (
+        <Section icon={<BellIcon className="w-5 h-5" />} title={`Caregiver Reminders (${reminders.length})`} color="blue">
+          {reminders.map((reminder) => (
+            <NotifRow
+              key={reminder.id}
+              title={`${reminder.child.firstName} ${reminder.child.lastName} · ${reminder.type === "VACCINE" ? "Vaccination" : "Home visit"}`}
+              sub={`${reminder.caregiverEmail ?? "No caregiver email"} · Due ${format(reminder.dueDate, "dd MMM yyyy")}`}
+              badge={reminder.status}
+              badgeColor={reminder.status === "SENT" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}
+              href={`/children/${reminder.child.id}?tab=${reminder.type === "VACCINE" ? "immunizations" : "visits"}`}
+              action={<div className="flex gap-2"><form action={completeReminder.bind(null, reminder.id)}><button type="submit" className="text-xs font-semibold text-green-700 hover:text-green-900">Complete</button></form><form action={cancelReminder.bind(null, reminder.id)}><button type="submit" className="text-xs font-semibold text-red-600 hover:text-red-800">Cancel</button></form></div>}
+            />
+          ))}
+        </Section>
+      )}
 
       {overdueFollowUps.length > 0 && (
         <Section
@@ -133,6 +161,17 @@ export default async function NotificationsPage() {
               badge="SCHEDULED"
               badgeColor="bg-blue-100 text-blue-700"
               href={`/children/${v.child.id}?tab=visits`}
+              action={
+                v.reminders.length > 0 ? (
+                  <span className="text-xs text-green-700">Reminder created</span>
+                ) : (
+                  <form action={createVisitReminder.bind(null, v.id)}>
+                    <button type="submit" className="text-xs font-semibold text-blue-700 hover:text-blue-900">
+                      Remind caregiver
+                    </button>
+                  </form>
+                )
+              }
             />
           ))}
         </Section>

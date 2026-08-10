@@ -18,6 +18,7 @@ export async function createVisit(formData: FormData) {
       chwId: session.user.id,
       visitDate: new Date(formData.get("visitDate") as string),
       observations: (formData.get("observations") as string) || null,
+      recommendations: (formData.get("recommendations") as string) || null,
       followUpDate: followUpDate ? new Date(followUpDate) : null,
       status: (formData.get("status") as VisitStatus) ?? "SCHEDULED",
     },
@@ -30,11 +31,60 @@ export async function createVisit(formData: FormData) {
 }
 
 export async function updateVisitStatus(id: string, status: VisitStatus) {
+  const session = await auth();
+  if (!session) throw new Error("Unauthorised");
+
+  const existing = await prisma.homeVisit.findUnique({ where: { id } });
+  if (!existing) throw new Error("Visit not found");
+  const canManage =
+    session.user.role === "ADMIN" ||
+    session.user.role === "SUPERVISOR" ||
+    existing.chwId === session.user.id;
+  if (!canManage) throw new Error("Forbidden");
+
   const visit = await prisma.homeVisit.update({
     where: { id },
     data: { status },
   });
   revalidatePath("/visits");
+  revalidatePath(`/children/${visit.childId}`);
+}
+
+export async function createVisitReminder(visitId: string) {
+  const session = await auth();
+  if (!session) throw new Error("Unauthorised");
+
+  const visit = await prisma.homeVisit.findUnique({
+    where: { id: visitId },
+    include: { child: { include: { caregiver: true } } },
+  });
+  if (!visit) throw new Error("Visit not found");
+  const canManage =
+    session.user.role === "ADMIN" ||
+    session.user.role === "SUPERVISOR" ||
+    visit.chwId === session.user.id;
+  if (!canManage) throw new Error("Forbidden");
+  if (visit.status !== "SCHEDULED") throw new Error("Only scheduled visits can have reminders");
+
+  const existing = await prisma.reminder.findFirst({
+    where: { homeVisitId: visitId, status: "PENDING" },
+  });
+  if (!existing) {
+    await prisma.reminder.create({
+      data: {
+        childId: visit.childId,
+        homeVisitId: visitId,
+        type: "VISIT",
+        dueDate: visit.visitDate,
+        caregiverName: visit.child.caregiver?.name ?? "Caregiver",
+        caregiverPhone: visit.child.caregiver?.phone,
+        caregiverEmail: visit.child.caregiver?.email,
+        message: `Reminder for ${visit.child.firstName} ${visit.child.lastName}: home visit scheduled for ${visit.visitDate.toISOString().slice(0, 10)}.`,
+      },
+    });
+  }
+
+  revalidatePath("/notifications");
   revalidatePath(`/children/${visit.childId}`);
 }
 

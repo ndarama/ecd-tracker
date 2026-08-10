@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import {
   HomeIcon,
   UsersIcon,
@@ -10,6 +11,7 @@ import {
   ChartBarIcon,
   BellIcon,
   UserCircleIcon,
+  UserGroupIcon,
   ArrowRightStartOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import clsx from "clsx";
@@ -25,6 +27,10 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const visibleItems = session?.user.role === "ADMIN"
+    ? [...navItems.slice(0, 1), { href: "/users", label: "Users Management", icon: UserGroupIcon }, ...navItems.slice(1)]
+    : navItems;
 
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-emerald-800 text-white shrink-0">
@@ -40,7 +46,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => (
+        {visibleItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}

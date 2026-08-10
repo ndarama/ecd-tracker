@@ -38,6 +38,27 @@ export interface ReportStats {
   };
 }
 
+export interface ReportChildRow {
+  id: string;
+  name: string;
+  village: string;
+  chwName: string;
+  growthRecords: number;
+  vaccinesGiven: number;
+  vaccinesPending: number;
+  visits: number;
+  pendingReferrals: number;
+}
+
+export interface ReportChwRow {
+  id: string;
+  name: string;
+  children: number;
+  visits: number;
+  completedVisits: number;
+  pendingReferrals: number;
+}
+
 export function parseReportDateRange(filters: ReportFilters): ReportDateRange {
   const from = filters.from ? new Date(`${filters.from}T00:00:00`) : undefined;
   const to = filters.to ? new Date(`${filters.to}T23:59:59.999`) : undefined;
@@ -180,4 +201,89 @@ export async function getReportOptions() {
     villages: villages.map((record) => record.village),
     chws,
   };
+}
+
+export async function getReportDetails(filters: ReportFilters = {}) {
+  const range = parseReportDateRange(filters);
+  const relatedChild = childWhere(filters);
+  const childFilter = { ...relatedChild, ...dateWhere("createdAt", range) };
+  const growthFilter = { child: relatedChild, ...dateWhere("date", range) };
+  const immunizationFilter = { child: relatedChild, ...dateWhere("dueDate", range) };
+  const visitFilter = { child: relatedChild, ...dateWhere("visitDate", range) };
+  const referralFilter = { child: relatedChild, ...dateWhere("referralDate", range) };
+
+  const [children, growth, immunizations, visits, referrals, chws, chwVisits] = await Promise.all([
+    prisma.child.findMany({
+      where: childFilter,
+      select: { id: true, firstName: true, lastName: true, village: true, chw: { select: { id: true, name: true } } },
+      orderBy: [{ village: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
+    }),
+    prisma.growthRecord.groupBy({ by: ["childId"], _count: { _all: true }, where: growthFilter }),
+    prisma.immunization.groupBy({
+      by: ["childId", "givenDate"],
+      _count: { _all: true },
+      where: immunizationFilter,
+    }),
+    prisma.homeVisit.groupBy({ by: ["childId", "status"], _count: { _all: true }, where: visitFilter }),
+    prisma.referral.groupBy({ by: ["childId", "status"], _count: { _all: true }, where: referralFilter }),
+    prisma.user.findMany({ where: { role: "CHW" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.homeVisit.groupBy({ by: ["chwId", "status"], _count: { _all: true }, where: visitFilter }),
+  ]);
+
+  const growthByChild = new Map(growth.map((row) => [row.childId, row._count._all]));
+  const immunizationByChild = new Map<string, { given: number; pending: number }>();
+  for (const row of immunizations) {
+    const current = immunizationByChild.get(row.childId) ?? { given: 0, pending: 0 };
+    if (row.givenDate) current.given += row._count._all;
+    else current.pending += row._count._all;
+    immunizationByChild.set(row.childId, current);
+  }
+  const visitsByChild = new Map<string, number>();
+  for (const row of visits) visitsByChild.set(row.childId, (visitsByChild.get(row.childId) ?? 0) + row._count._all);
+  const pendingReferralsByChild = new Map<string, number>();
+  for (const row of referrals) {
+    if (row.status === "PENDING") pendingReferralsByChild.set(row.childId, row._count._all);
+  }
+
+  const childRows: ReportChildRow[] = children.map((child) => {
+    const vaccine = immunizationByChild.get(child.id) ?? { given: 0, pending: 0 };
+    return {
+      id: child.id,
+      name: `${child.firstName} ${child.lastName}`,
+      village: child.village,
+      chwName: child.chw.name,
+      growthRecords: growthByChild.get(child.id) ?? 0,
+      vaccinesGiven: vaccine.given,
+      vaccinesPending: vaccine.pending,
+      visits: visitsByChild.get(child.id) ?? 0,
+      pendingReferrals: pendingReferralsByChild.get(child.id) ?? 0,
+    };
+  });
+
+  const childrenByChw = new Map<string, number>();
+  for (const child of children) childrenByChw.set(child.chw.id, (childrenByChw.get(child.chw.id) ?? 0) + 1);
+  const visitsByChw = new Map<string, { total: number; completed: number }>();
+  for (const row of chwVisits) {
+    const current = visitsByChw.get(row.chwId) ?? { total: 0, completed: 0 };
+    current.total += row._count._all;
+    if (row.status === "COMPLETED") current.completed += row._count._all;
+    visitsByChw.set(row.chwId, current);
+  }
+  const pendingReferralsByChw = new Map<string, number>();
+  for (const child of children) {
+    const pending = pendingReferralsByChild.get(child.id) ?? 0;
+    pendingReferralsByChw.set(child.chw.id, (pendingReferralsByChw.get(child.chw.id) ?? 0) + pending);
+  }
+  const performance: ReportChwRow[] = chws
+    .filter((chw) => childrenByChw.has(chw.id) || visitsByChw.has(chw.id))
+    .map((chw) => ({
+      id: chw.id,
+      name: chw.name,
+      children: childrenByChw.get(chw.id) ?? 0,
+      visits: visitsByChw.get(chw.id)?.total ?? 0,
+      completedVisits: visitsByChw.get(chw.id)?.completed ?? 0,
+      pendingReferrals: pendingReferralsByChw.get(chw.id) ?? 0,
+    }));
+
+  return { children: childRows, performance };
 }

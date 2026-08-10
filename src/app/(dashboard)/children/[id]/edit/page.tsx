@@ -11,7 +11,7 @@ interface Props {
 
 export default async function EditChildPage({ params }: Props) {
   const { id } = await params;
-  const child = await prisma.child.findUnique({ where: { id }, include: { caregiver: true } });
+  const child = await prisma.child.findUnique({ where: { id }, include: { caregiver: true, household: true } });
   if (!child) notFound();
 
   const action = updateChild.bind(null, id);
@@ -93,6 +93,23 @@ export default async function EditChildPage({ params }: Props) {
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Household Address</label>
+          <textarea
+            name="householdAddress"
+            required
+            rows={2}
+            defaultValue={child.household?.address ?? ""}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Replace Profile Image</label>
+          <input name="profileImage" type="file" accept="image/*" className="w-full text-sm text-gray-600" />
+          {child.profileImage && <p className="mt-1 text-xs text-green-700">A profile image is saved.</p>}
+        </div>
+
         <hr className="border-gray-200" />
         <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Caregiver</h2>
 
@@ -102,7 +119,7 @@ export default async function EditChildPage({ params }: Props) {
             <input
               name="caregiverName"
               required
-              defaultValue={child.caregiver?.name ?? child.caregiverName}
+              defaultValue={child.caregiver?.name ?? ""}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -110,9 +127,13 @@ export default async function EditChildPage({ params }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <input
               name="caregiverPhone"
-              defaultValue={child.caregiver?.phone ?? child.caregiverPhone ?? ""}
+              defaultValue={child.caregiver?.phone ?? ""}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input name="caregiverEmail" type="email" defaultValue={child.caregiver?.email ?? ""} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
           </div>
         </div>
 

@@ -4,21 +4,21 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { NutritionStatus, MilestoneCategory } from "@/generated/prisma/client";
+import { MilestoneCategory } from "@/generated/prisma/client";
+import {
+  validateGrowthForm,
+  validateImmunizationForm,
+  validateNutritionForm,
+} from "@/lib/health-validation";
 
 export async function createGrowthRecord(formData: FormData) {
   const childId = formData.get("childId") as string;
+  const validated = validateGrowthForm(formData);
 
   await prisma.growthRecord.create({
     data: {
       childId,
-      date: new Date(formData.get("date") as string),
-      weightKg: parseFloat(formData.get("weightKg") as string) || null,
-      heightCm: parseFloat(formData.get("heightCm") as string) || null,
-      muacCm: parseFloat(formData.get("muacCm") as string) || null,
-      nutritionStatus:
-        (formData.get("nutritionStatus") as NutritionStatus) || null,
-      notes: (formData.get("notes") as string) || null,
+      ...validated,
     },
   });
 
@@ -28,21 +28,29 @@ export async function createGrowthRecord(formData: FormData) {
 
 export async function createImmunization(formData: FormData) {
   const childId = formData.get("childId") as string;
-  const givenDate = formData.get("givenDate") as string;
+  const validated = validateImmunizationForm(formData);
 
   await prisma.immunization.create({
     data: {
       childId,
-      vaccine: formData.get("vaccine") as string,
-      dueDate: new Date(formData.get("dueDate") as string),
-      givenDate: givenDate ? new Date(givenDate) : null,
-      batchNumber: (formData.get("batchNumber") as string) || null,
-      notes: (formData.get("notes") as string) || null,
+      ...validated,
     },
   });
 
   revalidatePath(`/children/${childId}`);
   redirect(`/children/${childId}?tab=immunizations`);
+}
+
+export async function createNutritionScreening(formData: FormData) {
+  const childId = formData.get("childId") as string;
+  const validated = validateNutritionForm(formData);
+
+  await prisma.nutritionScreening.create({
+    data: { childId, ...validated },
+  });
+
+  revalidatePath(`/children/${childId}`);
+  redirect(`/children/${childId}?tab=nutrition`);
 }
 
 export async function markImmunizationGiven(id: string, childId: string) {
@@ -79,8 +87,9 @@ export async function createVaccineReminder(immunizationId: string) {
         immunizationId,
         type: "VACCINE",
         dueDate: immunization.dueDate,
-        caregiverName: immunization.child.caregiver?.name ?? immunization.child.caregiverName,
-        caregiverPhone: immunization.child.caregiver?.phone ?? immunization.child.caregiverPhone,
+        caregiverName: immunization.child.caregiver?.name ?? "Caregiver",
+        caregiverPhone: immunization.child.caregiver?.phone,
+        caregiverEmail: immunization.child.caregiver?.email,
         message: `Reminder for ${immunization.child.firstName} ${immunization.child.lastName}: ${immunization.vaccine} is due on ${immunization.dueDate.toISOString().slice(0, 10)}.`,
       },
     });

@@ -88,6 +88,24 @@ export default function NewChildPage() {
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Household Address <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            name="householdAddress"
+            required
+            rows={2}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Child Profile Image</label>
+          <input name="profileImage" type="file" accept="image/*" className="w-full text-sm text-gray-600" />
+          <p className="mt-1 text-xs text-gray-400">Image files up to 2 MB.</p>
+        </div>
+
         <hr className="border-gray-200" />
 
         <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
@@ -114,6 +132,10 @@ export default function NewChildPage() {
               type="tel"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input name="caregiverEmail" type="email" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
           </div>
         </div>
 

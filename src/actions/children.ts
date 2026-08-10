@@ -6,6 +6,17 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Gender } from "@/generated/prisma/client";
 
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+
+async function readProfileImage(formData: FormData) {
+  const file = formData.get("profileImage");
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (!file.type.startsWith("image/")) throw new Error("Profile image must be an image");
+  if (file.size > MAX_PROFILE_IMAGE_BYTES) throw new Error("Profile image must be 2 MB or smaller");
+  const bytes = await file.arrayBuffer();
+  return `data:${file.type};base64,${Buffer.from(bytes).toString("base64")}`;
+}
+
 export async function createChild(formData: FormData) {
   const session = await auth();
   if (!session) throw new Error("Unauthorised");
@@ -14,18 +25,25 @@ export async function createChild(formData: FormData) {
 
   const caregiverName = (formData.get("caregiverName") as string) || "";
   const caregiverPhone = (formData.get("caregiverPhone") as string) || null;
-  const village = (formData.get("village") as string) || undefined;
+  const caregiverEmail = (formData.get("caregiverEmail") as string)?.trim().toLowerCase() || null;
+  const village = (formData.get("village") as string) || "";
+  const householdAddress = (formData.get("householdAddress") as string) || "";
+  const profileImage = await readProfileImage(formData);
+
+  const household = await prisma.household.create({
+    data: { address: householdAddress, village },
+  });
 
   let caregiver;
   if (caregiverPhone) {
     caregiver = await prisma.caregiver.upsert({
       where: { phone: caregiverPhone },
-      update: { name: caregiverName, village },
-      create: { name: caregiverName, phone: caregiverPhone, village },
+      update: { name: caregiverName, email: caregiverEmail, householdId: household.id },
+      create: { name: caregiverName, phone: caregiverPhone, email: caregiverEmail, householdId: household.id },
     });
   } else {
     caregiver = await prisma.caregiver.create({
-      data: { name: caregiverName, phone: null, village },
+      data: { name: caregiverName, email: caregiverEmail, householdId: household.id },
     });
   }
 
@@ -35,9 +53,9 @@ export async function createChild(formData: FormData) {
       lastName: formData.get("lastName") as string,
       dateOfBirth: new Date(dob),
       gender: formData.get("gender") as Gender,
-      village: formData.get("village") as string,
-      caregiverName: caregiverName,
-      caregiverPhone: caregiverPhone,
+      village,
+      profileImage,
+      householdId: household.id,
       caregiverId: caregiver.id,
       chwId: session.user.id,
     },
@@ -55,25 +73,39 @@ export async function updateChild(id: string, formData: FormData) {
 
   const caregiverName = (formData.get("caregiverName") as string) || "";
   const caregiverPhone = (formData.get("caregiverPhone") as string) || null;
-  const village = (formData.get("village") as string) || undefined;
+  const caregiverEmail = (formData.get("caregiverEmail") as string)?.trim().toLowerCase() || null;
+  const village = (formData.get("village") as string) || "";
+  const householdAddress = (formData.get("householdAddress") as string) || "";
+  const profileImage = await readProfileImage(formData);
+  const existingChild = await prisma.child.findUnique({
+    where: { id },
+    include: { household: true },
+  });
+  if (!existingChild) throw new Error("Child not found");
+
+  const household = existingChild.household
+    ? await prisma.household.update({
+        where: { id: existingChild.household.id },
+        data: { address: householdAddress, village },
+      })
+    : await prisma.household.create({ data: { address: householdAddress, village } });
 
   // Determine or create caregiver
   let caregiverId: string | null = null;
   if (caregiverPhone) {
     const cg = await prisma.caregiver.upsert({
       where: { phone: caregiverPhone },
-      update: { name: caregiverName, village },
-      create: { name: caregiverName, phone: caregiverPhone, village },
+      update: { name: caregiverName, email: caregiverEmail, householdId: household.id },
+      create: { name: caregiverName, phone: caregiverPhone, email: caregiverEmail, householdId: household.id },
     });
     caregiverId = cg.id;
   } else {
     // If child already has a caregiver, update it; otherwise create a new caregiver
-    const existing = await prisma.child.findUnique({ where: { id }, select: { caregiverId: true } });
-    if (existing?.caregiverId) {
-      await prisma.caregiver.update({ where: { id: existing.caregiverId }, data: { name: caregiverName, village } });
-      caregiverId = existing.caregiverId;
+    if (existingChild.caregiverId) {
+      await prisma.caregiver.update({ where: { id: existingChild.caregiverId }, data: { name: caregiverName, email: caregiverEmail, householdId: household.id } });
+      caregiverId = existingChild.caregiverId;
     } else {
-      const cg = await prisma.caregiver.create({ data: { name: caregiverName, phone: null, village } });
+      const cg = await prisma.caregiver.create({ data: { name: caregiverName, email: caregiverEmail, householdId: household.id } });
       caregiverId = cg.id;
     }
   }
@@ -85,10 +117,10 @@ export async function updateChild(id: string, formData: FormData) {
       lastName: formData.get("lastName") as string,
       dateOfBirth: new Date(dob),
       gender: formData.get("gender") as Gender,
-      village: formData.get("village") as string,
-      caregiverName: caregiverName,
-      caregiverPhone: caregiverPhone,
+      village,
+      householdId: household.id,
       caregiverId: caregiverId,
+      ...(profileImage ? { profileImage } : {}),
     },
   });
 
