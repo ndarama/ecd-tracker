@@ -53,7 +53,6 @@ Community health workers can:
 
 * Register new children
 * Record dates of birth, gender, and identification information
-* Upload child profile images and supporting documents
 * Update child information when necessary
 * View a complete child profile
 
@@ -74,10 +73,9 @@ Community health workers can:
 
 * Record home visit dates
 * Write observations and visit notes
-* Record the child’s condition
-* Add caregiver concerns
-* Schedule the next visit
+* Schedule the next visit and follow-up date
 * Review previous home visits
+* Mark scheduled visits as completed or missed
 
 ### Growth Tracking
 
@@ -111,7 +109,7 @@ The system will allow users to:
 * Record vaccination dates
 * Identify missed vaccines
 * View upcoming vaccines
-* Add vaccination reminders
+* Create persisted caregiver reminders for upcoming vaccines
 * Monitor immunization completion
 
 ### Developmental Milestone Checks
@@ -148,27 +146,29 @@ Referral records may include:
 
 ### Reminders and Follow-Ups
 
-The system will provide reminders for:
+The notification center provides reminders for:
 
-* Home visits
-* Vaccinations
-* Growth measurements
-* Referral follow-ups
-* Developmental reviews
-* Nutrition follow-ups
+* Upcoming scheduled home visits for the assigned CHW
+* Overdue home-visit follow-ups
+* Upcoming and overdue vaccinations
+* Caregiver vaccine reminders stored in the database
+
+Caregiver reminders currently store the caregiver name, phone number, vaccine, due date, and reminder message. SMS and email delivery are not configured.
 
 ### Community Health Worker Dashboard
 
 The dashboard will display:
 
 * Total registered children
+* Growth and nutrition statistics
+* Immunization status: given, pending, and overdue
 * Upcoming home visits
 * Missed visits
 * Pending referrals
-* Upcoming vaccinations
-* Children with nutrition concerns
-* Recent activity
-* Growth and immunization summaries
+* Completed and scheduled visits
+* Recent registered children
+
+Supervisors and administrators can filter dashboard statistics by village, CHW, and date range. CHWs only see information for their assigned children.
 
 ### Reports
 
@@ -184,6 +184,8 @@ Supervisors will be able to generate reports for:
 * Community health worker activity
 
 Reports may be filtered by date, location, health worker, child, or status.
+
+The implemented monthly report supports month, village, and CHW filters and can be printed from the browser. Report data is queried directly from Prisma and includes child registration, growth and nutrition, immunization, home visit, and referral statistics.
 
 ## User Roles
 
@@ -230,14 +232,12 @@ Administrators can:
 | Frontend             | React                                |
 | Styling              | Tailwind CSS                         |
 | Backend              | Next.js API Routes or Server Actions |
-| Database             | PostgreSQL                           |
+| Database             | SQLite via Prisma libSQL adapter     |
 | ORM                  | Prisma                               |
 | Authentication       | NextAuth.js                          |
 | Authorization        | Role-Based Access Control            |
-| Charts               | Recharts or Chart.js                 |
-| File Storage         | Base64 storage                       |
 | Version Control      | Git and GitHub                       |
-| Deployment           | PM2 on Ubuntu Server                 |
+| Deployment           | PM2 or another Node.js process manager |
 
 ## Suggested Project Structure
 
@@ -279,7 +279,7 @@ ecd-tracking-system/
 
 ## Main Data Models
 
-The system may include the following database models:
+The current Prisma schema includes the following database models:
 
 * User
 * Role
@@ -287,15 +287,11 @@ The system may include the following database models:
 * Caregiver
 * Household
 * HomeVisit
-* GrowthMeasurement
-* NutritionScreening
+* GrowthRecord
 * Immunization
-* Vaccine
-* MilestoneAssessment
+* Milestone
 * Referral
 * Reminder
-* Document
-* ActivityLog
 
 ## Getting Started
 
@@ -303,11 +299,10 @@ The system may include the following database models:
 
 Install the following tools before running the project:
 
-* Node.js
+* Node.js 20 or newer
 * npm, Yarn, pnpm, or Bun
-* PostgreSQL
+* SQLite/libSQL (the default development database is `dev.db`)
 * Git
-* PM2 for production deployment
 
 ### Clone the Repository
 
@@ -335,7 +330,7 @@ pnpm install
 Create a `.env` file in the project root:
 
 ```env
-DATABASE_URL="postgresql://username:password@localhost:5432/ecd_tracking"
+DATABASE_URL="file:./dev.db"
 
 NEXTAUTH_URL="http://localhost:3000"
 
@@ -361,7 +356,7 @@ npx prisma migrate dev
 Optional: populate the database with initial data.
 
 ```bash
-npx prisma db seed
+npm run db:seed
 ```
 
 ### Start the Development Server
@@ -401,6 +396,30 @@ npm run lint
 ```
 
 Checks the project for linting problems.
+
+```bash
+npm run db:migrate
+```
+
+Applies pending Prisma migrations.
+
+```bash
+npm run db:seed
+```
+
+Creates the development admin, supervisor, and CHW accounts.
+
+```bash
+npm run db:studio
+```
+
+Opens Prisma Studio for inspecting the local database.
+
+```bash
+npm run test:reporting
+```
+
+Runs database-backed smoke checks for reporting queries, including village, CHW, and inclusive date-range filters.
 
 ## Production Deployment with PM2
 
@@ -442,23 +461,9 @@ The system should include:
 * Activity logging
 * Restricted access to child records
 * Database backup procedures
-* Protection against unauthorized file uploads
 * Environment variable protection
 
 Because the system stores sensitive information about children and families, access should only be granted to authorized users.
-
-## File Storage Considerations
-
-The initial version may use Base64 storage for child profile images and documents.
-
-However, Base64 files can significantly increase database size. For larger deployments, the project should consider using:
-
-* Local protected file storage
-* Amazon S3
-* Cloudinary
-* Supabase Storage
-* MinIO
-* Another secure object-storage service
 
 ## Future Improvements
 
