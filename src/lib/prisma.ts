@@ -2,12 +2,26 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import path from "path";
 
-function createPrismaClient() {
-  // Resolve absolute path from DATABASE_URL env or fall back to root dev.db
+function resolveDatabaseUrl() {
   const envUrl = process.env.DATABASE_URL;
-  const dbUrl = envUrl?.startsWith("file:./")
-    ? "file:" + path.resolve(envUrl.slice("file:./".length))
-    : envUrl ?? ("file:" + path.resolve("dev.db"));
+
+  if (envUrl) {
+    return envUrl.startsWith("file:./")
+      ? "file:" + path.resolve(envUrl.slice("file:./".length))
+      : envUrl;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Missing DATABASE_URL in production. Set DATABASE_URL to your production database connection string and do not use file:./dev.db in production."
+    );
+  }
+
+  return "file:" + path.resolve("dev.db");
+}
+
+function createPrismaClient() {
+  const dbUrl = resolveDatabaseUrl();
   const adapter = new PrismaLibSql({ url: dbUrl });
   return new PrismaClient({ adapter });
 }
