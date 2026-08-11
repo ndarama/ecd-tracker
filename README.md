@@ -335,7 +335,7 @@ pnpm install
 Create a `.env` file in the project root:
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://user:password@localhost:5432/ecd_tracker?schema=public"
 
 NEXTAUTH_URL="http://localhost:3000"
 

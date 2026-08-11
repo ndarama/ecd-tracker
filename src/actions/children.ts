@@ -21,6 +21,11 @@ export async function createChild(formData: FormData) {
   const session = await auth();
   if (!session) throw new Error("Unauthorised");
 
+  if (!session.user?.id) throw new Error("Authenticated user has no id in session");
+
+  const chw = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (!chw) throw new Error(`Authenticated user not found in database: ${session.user.id}`);
+
   const dob = formData.get("dateOfBirth") as string;
 
   const caregiverName = (formData.get("caregiverName") as string) || "";

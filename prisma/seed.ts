@@ -2,14 +2,20 @@
  * Seed script — creates default admin and CHW accounts.
  * Run: npx tsx prisma/seed.ts
  */
-import path from "path";
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
-const dbUrl = "file:" + path.resolve("dev.db");
-const adapter = new PrismaLibSql({ url: dbUrl });
-const prisma = new PrismaClient({ adapter });
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "Missing DATABASE_URL for seed script. Set DATABASE_URL to your PostgreSQL connection string."
+  );
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 async function main() {
   const password = await bcrypt.hash("password123", 12);

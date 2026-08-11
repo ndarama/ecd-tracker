@@ -3,7 +3,13 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-const databaseUrl = process.env["DATABASE_URL"] ?? "file:./dev.db";
+const databaseUrl = process.env["DATABASE_URL"];
+
+if (!databaseUrl) {
+  throw new Error(
+    "Missing DATABASE_URL. Set DATABASE_URL to your PostgreSQL connection string."
+  );
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
