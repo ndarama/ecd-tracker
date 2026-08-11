@@ -6,6 +6,8 @@ import type { Role } from "@/generated/prisma/client";
  * Full auth config with Credentials provider lives in auth.ts.
  */
 export const authConfig: NextAuthConfig = {
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
   callbacks: {

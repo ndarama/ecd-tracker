@@ -1,12 +1,17 @@
+import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
+import { auth } from "@/lib/auth";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+  if (!session) redirect("/login");
+
   return (
     <SessionProvider>
       <div className="flex h-screen overflow-hidden bg-gray-50">
