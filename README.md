@@ -233,6 +233,11 @@ The project supports scheduled reminder delivery by email. Trigger reminders wit
 * Server-side validation and protected API routes
 * Secure session handling and secret management
 
+## Team
+
+- NDARAMA Mark — Software Engineer & Project Developer
+- Kironde T Edward Sekirangi — Backend Engineer
+
 ## Project Status
 
 This repository contains a working ECD Tracker application with completed record management, visit tracking, immunization reminders, reporting, and administrative controls.
