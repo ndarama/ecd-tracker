@@ -1,387 +1,175 @@
-# Early Childhood Development Tracking System
+﻿# Early Childhood Development Tracking System
 
-A full-stack web application designed to help community health workers register children, record home visits, monitor growth, track immunizations, identify developmental concerns, and manage referrals.
-
-## Project Information
-
-**Project Name:** Early Childhood Development (ECD) Tracking System
-**Proposed by:** NDARAMA Mark
-**Project Type:** Full-Stack Web Application
-**Target Users:** Community health workers, health center supervisors, and system administrators
-
-## Project Quotes
-
-> “There can be no keener revelation of a society’s soul than the way in which it treats its children.”
-> — **Nelson Mandela**, launch of the Nelson Mandela Children’s Fund, 8 May 1995
-
-> “The child is both a hope and a promise for mankind.”
-> — **Maria Montessori**, *Education and Peace*
-
-> “The best investment is in quality early childhood development from birth to five for disadvantaged children and their families.”
-> — **James J. Heckman**, Nobel Prize–winning economist
-
+A full-stack web application for community health workers to register children, record home visits, monitor growth, track immunizations, manage referrals, and generate reports.
 
 ## Overview
 
-Many Early Childhood Development programs depend on community health workers to follow up with children and their families.
+ECD Tracker centralizes child health records, household and caregiver data, visit follow-up, and reminder workflows in a secure Next.js application.
 
-However, child records are often stored on paper, in notebooks, or across separate spreadsheets. This makes it difficult to monitor home visits, growth, nutrition, immunization, developmental milestones, and health concerns over time.
+The app reduces paper-based record keeping, improves visibility into growth and immunization status, and enables supervisors to review program activity and produce operational reports.
 
-The Early Childhood Development Tracking System will provide a centralized and secure platform where community health workers can manage child records and follow-up activities.
+## Completed Features
 
-The system will reduce paperwork, improve data accuracy, support timely interventions, and help health workers make better decisions for children under their care.
-
-## Objectives
-
-The main objectives of the system are to:
-
-* Store child and family information in one secure location
-* Reduce dependence on paper-based records
-* Improve the tracking of home visits and follow-ups
-* Monitor children’s height, weight, age, and overall growth
-* Track nutrition, immunization, and developmental milestones
-* Identify children who may require referrals or additional support
-* Provide reminders for visits, vaccinations, and follow-up activities
-* Generate reports for health center supervisors
-* Improve communication between community health workers and supervisors
-
-## Key Features
-
-### Child Registration
-
-Community health workers can:
-
-* Register new children
-* Record dates of birth, gender, and identification information
-* Add a household address and village
-* Upload an optional child profile image up to 2 MB
-* Update child information when necessary
-* View a complete child profile
-
-### Family and Caregiver Management
-
-The system will store:
-
-* Parent or caregiver names
-* Phone numbers
-* Normalized caregiver records linked to children
-* Household records with address and village
-
-Child records reference their caregiver and household instead of duplicating caregiver name and phone fields.
-
-### Home Visit Tracking
-
-Community health workers can:
-
-* Record home visit dates
-* Write observations and visit notes
-* Schedule the next visit and follow-up date
-* Review previous home visits
-* Mark scheduled visits as completed or missed
-
-### Growth Tracking
-
-The system will track:
-
-* Weight
-* Height
-* Age
-* Growth history
-* Measurement dates
-* Growth trends using charts
-
-This information will help health workers identify possible growth concerns.
-
-### Nutrition Screening
-
-Community health workers can record:
-
-* Meal information
-* Feeding habits
-* Breastfeeding status
-* Signs of malnutrition
-* Nutrition concerns
-* Recommended nutrition support
-
-### Immunization Tracking
-
-The system will allow users to:
-
-* Record vaccines received
-* Record vaccination dates
-* Identify missed vaccines
-* View upcoming vaccines
-* Create persisted caregiver reminders for upcoming vaccines
-* Monitor immunization completion
-
-### Developmental Milestone Checks
-
-Community health workers can monitor milestones related to:
-
-* Communication
-* Movement
-* Learning
-* Social interaction
-* Emotional development
-* Problem-solving skills
-
-Any delayed or concerning milestone can be recorded for further follow-up.
-
-### Referral Management
-
-Children requiring additional support can be referred to:
-
-* Health centers
-* Nutrition specialists
-* Child development specialists
-* Social support services
-* Other relevant service providers
-
-Referral records may include:
-
-* Reason for referral
-* Referral date
-* Destination
-* Priority level
-* Follow-up status
-* Additional notes
-
-### Reminders and Follow-Ups
-
-The notification center provides reminders for:
-
-* Upcoming scheduled home visits for the assigned CHW
-* Overdue home-visit follow-ups
-* Upcoming and overdue vaccinations
-* Caregiver vaccine reminders stored in the database
-
-Caregiver reminders currently store the caregiver name, phone number, vaccine, due date, and reminder message. SMS and email delivery are not configured.
-
-### Community Health Worker Dashboard
-
-The dashboard will display:
-
-* Total registered children
-* Growth and nutrition statistics
-* Immunization status: given, pending, and overdue
-* Upcoming home visits
-* Missed visits
-* Pending referrals
-* Completed and scheduled visits
-* Recent registered children
-
-Supervisors and administrators can filter dashboard statistics by village, CHW, and date range. CHWs only see information for their assigned children.
-
-### Reports
-
-Supervisors will be able to generate reports for:
-
-* Registered children
-* Home visits
-* Growth measurements
-* Immunization status
-* Nutrition concerns
-* Developmental concerns
-* Referrals
-* Community health worker activity
-
-Reports may be filtered by date, location, health worker, child, or status.
-
-The implemented monthly report supports month, village, and CHW filters and can be printed from the browser. It includes aggregate statistics, a detailed child-by-child health and follow-up table, and a CHW performance table. Supervisors and administrators can also export the filtered report as an Excel-compatible CSV file. Report data is queried directly from Prisma and includes child registration, growth and nutrition, immunization, home visit, and referral statistics.
+* Role-based access control for CHWs, supervisors, and administrators
+* Credential-based login with NextAuth
+* Child registration with linked caregiver and household records
+* Growth recording and nutrition screening
+* Immunization tracking with vaccine reminders
+* Developmental milestone tracking
+* Home visit scheduling and follow-up notes
+* Referral management with status tracking
+* Email reminder delivery via SMTP
+* Monthly reports with village, CHW, and date filters
+* Printable report view and CSV export
+* Administrative user management
 
 ## User Roles
 
-### Community Health Worker
-
-Community health workers can:
+### Community Health Worker (CHW)
 
 * Register and manage children
-* Record home visits
-* Add growth measurements
-* Track immunizations
-* Record nutrition information
-* Complete milestone assessments
-* Create referral notes
-* View assigned reminders
+* Log growth, nutrition, immunization, and milestone data
+* Record home visits and follow-up actions
+* Create referrals and review reminders
 
 ### Supervisor
 
-Supervisors can:
-
-* Monitor community health worker activities
-* Review child records
-* View referrals
-* Generate reports
-* Monitor program performance
-* Review children requiring additional support
+* Review child and home visit records
+* Monitor CHW activity and follow-ups
+* Generate filtered reports
 
 ### Administrator
 
-Administrators can:
-
-* Manage user accounts
-* Create, edit, and delete CHW, Supervisor, and Super Administrator accounts
-* Assign user roles
-* Manage system settings
-* Control access permissions
-* View system-wide reports
-* Monitor system activity
-
-The Users Management page is available only to Super Administrators. User passwords are hashed with bcrypt, email addresses must be unique, administrators cannot delete their own account, and users with assigned children or home visits cannot be deleted until those records are reassigned.
+* Manage user accounts and roles
+* Access system-wide reports
+* Control application permissions
 
 ## Technology Stack
 
-| Area                 | Technology                           |
-| -------------------- | ------------------------------------ |
-| Full-Stack Framework | Next.js with TypeScript              |
-| Frontend             | React                                |
-| Styling              | Tailwind CSS                         |
-| Backend              | Next.js API Routes or Server Actions |
-| Database             | SQLite via Prisma libSQL adapter     |
-| ORM                  | Prisma                               |
-| Authentication       | NextAuth.js                          |
-| Authorization        | Role-Based Access Control            |
-| Version Control      | Git and GitHub                       |
-| Deployment           | PM2 or another Node.js process manager |
+| Area                 | Technology                          |
+| -------------------- | ----------------------------------- |
+| Framework            | Next.js with TypeScript             |
+| Frontend             | React + Tailwind CSS                |
+| Backend              | Next.js App Router + server actions |
+| Database             | PostgreSQL                          |
+| ORM                  | Prisma                              |
+| Authentication       | NextAuth.js                         |
+| Email Delivery       | Nodemailer                          |
+| Scripts              | tsx                                 |
 
-## Suggested Project Structure
+## Project Structure
 
 ```text
-ecd-tracking-system/
+ecd-tracker/
 ├── app/
 │   ├── api/
-│   ├── dashboard/
-│   ├── children/
-│   ├── visits/
-│   ├── growth/
-│   ├── nutrition/
-│   ├── immunizations/
-│   ├── milestones/
-│   ├── referrals/
-│   ├── reports/
-│   └── users/
+│   │   ├── auth/
+│   │   ├── cron/
+│   │   └── reports/
+│   ├── (auth)/
+│   │   └── login/
+│   ├── (dashboard)/
+│   │   ├── account/
+│   │   ├── children/
+│   │   ├── dashboard/
+│   │   ├── notifications/
+│   │   ├── reports/
+│   │   ├── users/
+│   │   └── visits/
+│   └── globals.css
 ├── components/
-│   ├── forms/
-│   ├── charts/
-│   ├── tables/
 │   ├── layout/
-│   └── ui/
+│   └── reports/
 ├── lib/
+│   ├── auth.config.ts
 │   ├── auth.ts
 │   ├── prisma.ts
-│   ├── permissions.ts
-│   └── validations.ts
+│   ├── reminders.ts
+│   └── reporting.ts
 ├── prisma/
 │   ├── schema.prisma
 │   └── seed.ts
-├── public/
+├── scripts/
+│   ├── send-reminders.ts
+│   └── verify-reporting.ts
+├── src/generated/prisma/
 ├── types/
-├── middleware.ts
-├── next.config.js
 ├── package.json
+├── next.config.ts
+├── tsconfig.json
 └── README.md
 ```
 
 ## Main Data Models
 
-The current Prisma schema includes the following database models:
-
-* User
-* Role
-* Child
-* Caregiver
-* Household
-* HomeVisit
-* GrowthRecord
-* Immunization
-* Milestone
-* Referral
-* Reminder
+* `User`
+* `Child`
+* `Caregiver`
+* `Household`
+* `GrowthRecord`
+* `NutritionScreening`
+* `Immunization`
+* `Milestone`
+* `HomeVisit`
+* `Referral`
+* `Reminder`
 
 ## Getting Started
 
 ### Prerequisites
 
-Install the following tools before running the project:
-
 * Node.js 20 or newer
 * npm, Yarn, pnpm, or Bun
-* SQLite/libSQL (the default development database is `dev.db`)
+* PostgreSQL or compatible libSQL database
 * Git
 
-### Clone the Repository
-
-```bash
-git clone https://github.com/ndarama/ecd-tracker.git
-cd ecd-tracker
-```
-
 ### Install Dependencies
-
-Using npm:
 
 ```bash
 npm install
 ```
 
-Using pnpm:
-
-```bash
-pnpm install
-```
-
-### Configure Environment Variables
+### Environment Variables
 
 Create a `.env` file in the project root:
 
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/ecd_tracker?schema=public"
-
 NEXTAUTH_URL="http://localhost:3000"
-
-NEXTAUTH_SECRET="replace-with-a-secure-secret"
-
-# SMTP email delivery
+AUTH_SECRET="replace-with-a-secure-secret"
+CRON_SECRET="replace-with-a-cron-secret"
 SMTP_HOST="smtp.example.com"
 SMTP_PORT="587"
 SMTP_SECURE="false"
 SMTP_USER="smtp-user"
 SMTP_PASSWORD="smtp-password"
 SMTP_FROM="ECD Tracker <noreply@example.com>"
-
-# Secret for the protected scheduled endpoint
-CRON_SECRET="replace-with-a-cron-secret"
 ```
 
-Do not commit the `.env` file to GitHub.
+Do not commit `.env` to source control.
 
-### Set Up the Database
+### Database Setup
 
-Generate the Prisma client:
+Generate the Prisma client and apply migrations:
 
 ```bash
 npx prisma generate
+npm run db:migrate
 ```
 
-Run the database migrations:
-
-```bash
-npx prisma migrate dev
-```
-
-Optional: populate the database with initial data.
+Optional: seed development data:
 
 ```bash
 npm run db:seed
 ```
 
-### Start the Development Server
+### Run Locally
 
 ```bash
 npm run dev
 ```
 
-Open the following address in your browser:
+Open the app at:
 
 ```text
 http://localhost:3000
@@ -392,141 +180,59 @@ http://localhost:3000
 ```bash
 npm run dev
 ```
-
-Starts the development server.
+Start the development server.
 
 ```bash
 npm run build
 ```
-
-Creates a production build.
+Build the application and generate Prisma client.
 
 ```bash
 npm run start
 ```
-
-Starts the production server.
+Start the production server.
 
 ```bash
 npm run lint
 ```
-
-Checks the project for linting problems.
+Run ESLint.
 
 ```bash
 npm run db:migrate
 ```
-
-Applies pending Prisma migrations.
+Apply Prisma migrations.
 
 ```bash
 npm run db:seed
 ```
-
-Creates the development admin, supervisor, and CHW accounts.
+Seed development data.
 
 ```bash
 npm run db:studio
 ```
-
-Opens Prisma Studio for inspecting the local database.
+Open Prisma Studio.
 
 ```bash
 npm run test:reporting
 ```
-
-Runs database-backed smoke checks for reporting queries, including village, CHW, and inclusive date-range filters.
+Run reporting checks.
 
 ```bash
 npm run reminders:send
 ```
+Send pending reminder emails.
 
-Sends due pending reminder emails through the configured SMTP server. Schedule this command hourly with Windows Task Scheduler, Linux cron, or a process scheduler. Deployments that provide HTTP cron jobs can instead call `/api/cron/reminders` with `Authorization: Bearer $CRON_SECRET`.
+## Reminder Delivery
 
-## Production Deployment with PM2
+The project supports scheduled reminder delivery by email. Trigger reminders with `npm run reminders:send` or via the protected `/api/cron/reminders` endpoint using `Authorization: Bearer $CRON_SECRET`.
 
-Create a production build:
+## Security Notes
 
-```bash
-npm run build
-```
-
-Start the application using PM2:
-
-```bash
-pm2 start npm --name "ecd-tracker" -- start
-```
-
-Save the PM2 process:
-
-```bash
-pm2 save
-```
-
-Configure PM2 to start automatically after a server restart:
-
-```bash
-pm2 startup
-```
-
-Follow the command displayed by PM2 to complete the startup configuration.
-
-## Security Considerations
-
-The system should include:
-
-* Secure password handling
-* Role-based authorization
-* Protected application routes
-* Server-side input validation
-* Secure session management
-* Activity logging
-* Restricted access to child records
-* Database backup procedures
-* Environment variable protection
-
-Because the system stores sensitive information about children and families, access should only be granted to authorized users.
-
-## Future Improvements
-
-Possible future improvements include:
-
-* Offline data collection
-* SMS reminders for caregivers
-* Email notifications
-* Mobile application support
-* Multi-language support
-* Geographic mapping
-* Health center integration
-* Automated growth-risk detection
-* Exporting reports to PDF or Excel
-* Data visualization for program managers
-* Audit logs
-* Two-factor authentication
-* Advanced backup and recovery
-
-## Expected Impact
-
-The system is expected to:
-
-* Reduce paperwork
-* Improve the accuracy of child records
-* Strengthen follow-up activities
-* Support early identification of health and developmental concerns
-* Improve communication between health workers and supervisors
-* Help ensure that vulnerable children receive timely support
-* Provide reliable information for planning and decision-making
+* Credentials-based authentication with NextAuth
+* Role-based access control for CHWs, supervisors, and admins
+* Server-side validation and protected API routes
+* Secure session handling and secret management
 
 ## Project Status
 
-The project is currently in the proposal and development-planning stage.
-
-## Author
-
-**NDARAMA Mark**
-
-Software Engineer and Project Developer
-
-## License
-
-This project is intended for educational and community health development purposes. A suitable open-source or private license may be added before public deployment.
+This repository contains a working ECD Tracker application with completed record management, visit tracking, immunization reminders, reporting, and administrative controls.
