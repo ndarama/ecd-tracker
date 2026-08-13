@@ -119,7 +119,7 @@ ecd-tracker/
 ### Prerequisites
 
 * Node.js 20 or newer
-* npm, Yarn, pnpm, or Bun
+* npm
 * PostgreSQL or compatible libSQL database
 * Git
 
